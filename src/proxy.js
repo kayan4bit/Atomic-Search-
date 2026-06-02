@@ -93,25 +93,40 @@ function rewriteHtml(html, base) {
     })
     // srcset
     .replace(/\bsrcset=(["'])([^"']+)\1/gi, (m, q, val) => `srcset=${q}${rewriteSrcset(val, base)}${q}`)
-    // CSS url(...) inside <style> blocks. (Styles pulled in via <link
-    // rel="stylesheet"> stream through the proxy and get rewritten there.)
+    // CSS url(...) and @import inside <style> blocks. Styles pulled in via
+    // <link rel="stylesheet"> stream through the proxy and get rewritten there.
+    // We use rewriteCss() here too so @import rules inside inline <style>
+    // blocks are also proxied correctly.
     .replace(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi, (m, attrs, css) => {
-      const rewritten = css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (mm, qq, u) => {
-        return `url(${qq}${rewriteUrl(u, base)}${qq})`;
-      });
-      return `<style${attrs}>${rewritten}</style>`;
+      return `<style${attrs}>${rewriteCss(css, base)}</style>`;
     });
+
 
   return { html: out, stats };
 }
 
-// CSS files streamed through the proxy also need their url() refs rewritten.
+// CSS files streamed through the proxy also need their url() refs rewritten,
+// AND @import rules must be rewritten so imported stylesheets also go through
+// the proxy. This is the key fix for sites that load styles via CSS @import.
 function rewriteCss(css, base) {
-  return css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (m, q, u) => {
+  // Step 1: rewrite @import "url" and @import url("url") statements so
+  // imported stylesheets are also fetched through our proxy.
+  let out = css.replace(
+    /@import\s+(?:url\s*\(\s*)?(['"]?)([^'"\s;)]+)\1\s*\)?([^;]*);/gi,
+    (m, q, u, rest) => {
+      if (/^(data:|blob:|about:)/i.test(u)) return m;
+      const rewritten = rewriteUrl(u, base);
+      return `@import url("${rewritten}")${rest};`;
+    }
+  );
+  // Step 2: rewrite url(...) references (backgrounds, fonts, images, etc.).
+  out = out.replace(/url\(\s*(['"]?)([^'"\s)]+)\1\s*\)/gi, (m, q, u) => {
     if (/^(data:|blob:|about:)/i.test(u)) return m;
     return `url(${q}${rewriteUrl(u, base)}${q})`;
   });
+  return out;
 }
+
 
 // Runtime shim injected into proxied pages. Reroutes fetch/XHR through our
 // proxy so in-page API calls still work (without leaking the user's IP).

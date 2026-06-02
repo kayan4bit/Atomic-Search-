@@ -449,6 +449,22 @@ export async function recordCrawlFailure(url, reason) {
   return { dead: false, attempts, retryInMs: cooldown };
 }
 
+// Batch pop up to `n` crawl tasks in a single query. Dramatically faster
+// than calling nextCrawlTask() n times because it's one DB round-trip.
+// Returns an array of { url, attempts } objects (may be shorter than n).
+export async function nextCrawlTaskBatch(n = 10) {
+  if (!(await tryLoadSqlite())) return [];
+  const rows = db
+    .prepare(
+      `SELECT q.url, q.attempts FROM crawl_queue q
+       LEFT JOIN dead_urls d ON d.url = q.url
+       WHERE d.url IS NULL AND (q.next_attempt_at IS NULL OR q.next_attempt_at <= ?)
+       ORDER BY q.added_at LIMIT ?`
+    )
+    .all(now(), Math.min(n, 50));
+  return rows.map((r) => ({ url: r.url, attempts: r.attempts || 0 }));
+}
+
 // Re-enqueue pages older than `olderThanMs`. Used by the janitor so our index
 // stays fresh without us having to manually re-submit every URL.
 export async function reenqueueStale(olderThanMs = 14 * 24 * 3600 * 1000, limit = 50) {
