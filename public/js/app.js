@@ -426,9 +426,12 @@
     $("search-meta").innerHTML =
       "<span>About " + (data.total || results.length) + " results (" + elapsed + "s)</span>" +
       '<span class="dot"></span>' +
-      ownHtml;
+      ownHtml +
+      '<span style="margin-left:auto;display:flex;gap:4px">' +
+      '<button class="export-btn" data-export="json" title="Export results as JSON">Export JSON</button>' +
+      '<button class="export-btn" data-export="csv" title="Export results as CSV">Export CSV</button>' +
+      '</span>';
 
-    $("results").hidden = false;
     var instantHtml = instant ? renderInstantCard(instant) : "";
     var serverAnswerHtml = data.instant ? renderServerAnswerBox(data.instant) : "";
     var dymHtml = renderDidYouMean(data.didYouMean);
@@ -696,10 +699,16 @@
       var items = (data && data.results) || [];
       if (!items.length) { $("images-grid").innerHTML = '<p class="empty">No images.</p>'; return; }
       $("images-grid").innerHTML = items.map(function (img) {
-        var viewUrl = "/go?url=" + encodeURIComponent(img.source || img.image);
+        // Use the proxied thumbnail URL (served via /api/image-proxy) so the
+        // browser never contacts upstream CDNs directly. Fall back to a
+        // proxied version of the full image if thumbnail is missing.
+        var thumbSrc = img.thumbnail || ("/api/image-proxy?url=" + encodeURIComponent(img.image || ""));
+        // Link to the source page for context.
+        var viewUrl = "/go?url=" + encodeURIComponent(img.source || img.originalImage || img.image || "");
         return (
-          '<a href="' + esc(viewUrl) + '" target="_top" rel="noreferrer noopener">' +
-          '  <img loading="lazy" src="' + esc(img.thumbnail || img.image) + '" alt="' + esc(img.title || "") + '">' +
+          '<a href="' + esc(viewUrl) + '" target="_top" rel="noreferrer noopener" title="' + esc(img.title || "") + '">' +
+          '  <img loading="lazy" src="' + esc(thumbSrc) + '" alt="' + esc(img.title || "") + '"' +
+          '    onerror="this.style.display=\'none\'">' +
           (img.title ? '<span class="caption">' + esc(img.title) + "</span>" : "") +
           "</a>"
         );
@@ -708,6 +717,7 @@
       $("images-grid").innerHTML = '<p class="empty">Could not load images.</p>';
     }
   }
+
 
   /* ---------------- URL state ---------------- */
   function pushUrl() {
@@ -930,13 +940,116 @@
       }
     } catch (e) { showHome(); }
 
-    // Keyboard: focus search with "/"
+    // Keyboard shortcuts:
+    //   /  — focus search input
+    //   ?  — show advanced search cheat sheet
+    //   Escape — close any open dropdown/modal
     document.addEventListener("keydown", function (e) {
-      if (e.key === "/" && !/input|textarea|select/i.test(e.target.tagName || "")) {
+      var tag = (e.target.tagName || "").toLowerCase();
+      var inInput = /input|textarea|select/.test(tag);
+      if (e.key === "/" && !inInput) {
         e.preventDefault();
         var el = $("q") || $("q-hero");
-        if (el) el.focus();
+        if (el) { el.focus(); el.select(); }
+        return;
+      }
+      if (e.key === "?" && !inInput) {
+        e.preventDefault();
+        var helpBtn = document.getElementById("adv-help-btn");
+        if (helpBtn) helpBtn.click();
+        return;
       }
     });
+
+    // Search history dropdown: show when the search input is focused and
+    // there's history to show. Dismiss on blur or outside click.
+    function bindHistoryDropdown(inputId) {
+      var input = $(inputId);
+      if (!input) return;
+      var dropdown = null;
+
+      function showDropdown() {
+        var hist = getHistory();
+        if (!hist.length) return;
+        if (dropdown) dropdown.remove();
+        dropdown = document.createElement("div");
+        dropdown.className = "history-dropdown";
+        dropdown.setAttribute("role", "listbox");
+        dropdown.setAttribute("aria-label", "Recent searches");
+        hist.slice(0, 8).forEach(function (q) {
+          var item = document.createElement("div");
+          item.className = "history-item";
+          item.setAttribute("role", "option");
+          item.innerHTML =
+            '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 16 14"/></svg>' +
+            '<span>' + esc(q) + '</span>' +
+            '<button class="hist-del" type="button" aria-label="Remove from history" title="Remove">✕</button>';
+          item.querySelector("span").addEventListener("click", function () {
+            input.value = q;
+            dropdown.remove(); dropdown = null;
+            submitQuery(q);
+          });
+          item.querySelector(".hist-del").addEventListener("click", function (e) {
+            e.stopPropagation();
+            try {
+              var list = JSON.parse(localStorage.getItem("atomic.history") || "[]");
+              list = list.filter(function (x) { return x !== q; });
+              localStorage.setItem("atomic.history", JSON.stringify(list));
+            } catch (err) { /* ignore */ }
+            item.remove();
+            if (!dropdown.querySelectorAll(".history-item").length) {
+              dropdown.remove(); dropdown = null;
+            }
+          });
+          dropdown.appendChild(item);
+        });
+        var clearRow = document.createElement("div");
+        clearRow.className = "history-clear";
+        clearRow.textContent = "Clear history";
+        clearRow.addEventListener("click", function () {
+          clearHistory();
+          if (dropdown) { dropdown.remove(); dropdown = null; }
+        });
+        dropdown.appendChild(clearRow);
+        // Position relative to the input's parent form.
+        var form = input.closest("form");
+        if (form) {
+          form.style.position = "relative";
+          form.appendChild(dropdown);
+        } else {
+          input.parentNode.appendChild(dropdown);
+        }
+      }
+
+      function hideDropdown() {
+        setTimeout(function () {
+          if (dropdown) { dropdown.remove(); dropdown = null; }
+        }, 150);
+      }
+
+      input.addEventListener("focus", showDropdown);
+      input.addEventListener("blur", hideDropdown);
+      input.addEventListener("input", function () {
+        if (dropdown) { dropdown.remove(); dropdown = null; }
+      });
+    }
+
+    bindHistoryDropdown("q");
+    bindHistoryDropdown("q-hero");
+
+    // "?" help button — add dynamically next to the results search form.
+    var topbarForm = $("form");
+    if (topbarForm) {
+      var helpBtn = document.createElement("button");
+      helpBtn.id = "adv-help-btn";
+      helpBtn.type = "button";
+      helpBtn.title = "Search operators (?)";
+      helpBtn.setAttribute("aria-label", "Search operators help");
+      helpBtn.style.cssText = "background:none;border:none;cursor:pointer;padding:4px 6px;color:var(--text-mute);font-size:13px;border-radius:4px;";
+      helpBtn.textContent = "?";
+      helpBtn.addEventListener("mouseenter", function () { helpBtn.style.color = "var(--accent)"; });
+      helpBtn.addEventListener("mouseleave", function () { helpBtn.style.color = "var(--text-mute)"; });
+      topbarForm.parentNode.insertBefore(helpBtn, topbarForm.nextSibling);
+    }
   });
 })();

@@ -1,5 +1,9 @@
 // Image search aggregator — DuckDuckGo images (2-step vqd flow) + Bing images.
 // Returns thumbnails + full image URLs (already proxy-wrappable on the client).
+// v3.2: thumbnails are now served through /api/image-proxy so the browser
+// never contacts upstream image CDNs directly (privacy fix). The proxy
+// fetches the image server-side, validates the MIME type, and streams it
+// back with correct Content-Type headers.
 
 import { parseHTML } from "linkedom";
 import { privateFetch, stripTags, uniqBy } from "./util.js";
@@ -64,6 +68,47 @@ async function bingImages(q) {
   }
 }
 
+// Proxy a thumbnail URL through our server so the browser never contacts
+// upstream image CDNs. Returns a Response with the image data and correct
+// MIME type, or a 404 if the image can't be fetched.
+export async function proxyImageUrl(rawUrl) {
+  if (!rawUrl) return new Response("Missing URL", { status: 400 });
+  let url;
+  try { url = new URL(rawUrl); } catch { return new Response("Invalid URL", { status: 400 }); }
+  // Only allow http/https.
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return new Response("Scheme not allowed", { status: 400 });
+  }
+  try {
+    const res = await privateFetch(rawUrl, {
+      timeout: 8000,
+      headers: {
+        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "Sec-Fetch-Dest": "image",
+      },
+    });
+    if (!res.ok) return new Response("Upstream error", { status: 502 });
+    const ct = res.headers.get("content-type") || "image/jpeg";
+    // Only allow image content types.
+    if (!ct.startsWith("image/")) return new Response("Not an image", { status: 415 });
+    const headers = new Headers({
+      "Content-Type": ct,
+      "Cache-Control": "public, max-age=3600, immutable",
+      "Referrer-Policy": "no-referrer",
+      "X-Robots-Tag": "noindex, nofollow",
+    });
+    return new Response(res.body, { status: 200, headers });
+  } catch (e) {
+    return new Response("Fetch failed: " + (e?.message || e), { status: 502 });
+  }
+}
+
+// Wrap a thumbnail URL so it goes through our image proxy.
+function proxyThumb(url) {
+  if (!url) return null;
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+}
+
 export async function metaImages(q) {
   if (!q || !q.trim()) return { results: [], query: q };
   const query = q.trim().slice(0, 256);
@@ -78,6 +123,15 @@ export async function metaImages(q) {
       if (isNsfwText(r.title || "")) return false;
       return true;
     })
-    .slice(0, 60);
+    .slice(0, 60)
+    // Route thumbnails through our proxy so the browser never contacts
+    // upstream CDNs directly. The full-size image URL is kept as-is for
+    // the "open original" link.
+    .map((r) => ({
+      ...r,
+      thumbnail: proxyThumb(r.thumbnail || r.image),
+      // Keep the original image URL for the source link.
+      originalImage: r.image,
+    }));
   return { query, results: merged };
 }

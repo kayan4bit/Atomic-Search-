@@ -5,7 +5,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { metaSearch, engineHealth } from "./aggregator.js";
-import { metaImages } from "./images.js";
+import { metaImages, proxyImageUrl } from "./images.js";
 import { proxyHandler } from "./proxy.js";
 import { safetyCheck } from "./safety.js";
 import { resolveInstant } from "./instant.js";
@@ -27,6 +27,17 @@ import { scanDownload, scanBuffer } from "./scan.js";
 import { crawlOne, seedFromSearch } from "./crawler.js";
 import { isNsfwResult, isNsfwText, isNsfwUrl } from "./nsfw.js";
 import { requestSnapshot, forceSnapshot, getSyncStatus } from "./git_sync.js";
+// Optional AI enhancement — gracefully no-ops when OPENROUTER_API_KEY is absent.
+import {
+  isOpenRouterAvailable,
+  summariseResults,
+  aiDidYouMean,
+  enhanceSynthesis,
+  expandQuery,
+} from "./openrouter.js";
+// Optional scrapers — only activated for relevant query types.
+import { checkDomain } from "./scrapers/scamadviser.js";
+import { isHotelQuery, searchHotels, formatHotelResults } from "./scrapers/trivago.js";
 
 const SEARCH_TTL = 60 * 60 * 1000; // 60 min — less re-fetching, still fresh enough
 const IMAGE_TTL = 30 * 60 * 1000;
@@ -872,7 +883,63 @@ export function buildApp() {
       const tool = await resolveInstant(q);
       if (tool) instantOverride = tool;
     }
-    const out = { ...meta, query: q, results: merged, ownIndexCount, related, didYouMean, siteFilter, instant: instantOverride };
+
+    // Hotel results: if the query is hotel/vacation-related, fetch Trivago
+    // listings (non-sponsored) and inject them into the result set.
+    let hotelResults = [];
+    if (page === 1 && isHotelQuery(q)) {
+      try {
+        const hotelData = await searchHotels(q, {});
+        hotelResults = formatHotelResults(hotelData);
+      } catch { /* ignore — hotel scraper is best-effort */ }
+    }
+
+    // AI-enhanced synthesis: if OpenRouter is configured and the extractive
+    // synthesis is available, try to improve it. Fire-and-forget with a
+    // short timeout so it never blocks the response.
+    let aiSynthesis = null;
+    if (page === 1 && isOpenRouterAvailable() && meta.instant?.text) {
+      try {
+        const enhanced = await Promise.race([
+          enhanceSynthesis(q, meta.instant.text, merged.slice(0, 5)),
+          new Promise((r) => setTimeout(() => r(null), 3000)),
+        ]);
+        if (enhanced) {
+          aiSynthesis = { ...meta.instant, text: enhanced, source: "Atomic AI synthesis" };
+        }
+      } catch { /* ignore */ }
+    }
+
+    // AI "Did you mean" fallback: if the heuristic found nothing and
+    // OpenRouter is available, ask the AI.
+    let finalDidYouMean = didYouMean;
+    if (!finalDidYouMean && page === 1 && isOpenRouterAvailable()) {
+      try {
+        const aiSuggestion = await Promise.race([
+          aiDidYouMean(q),
+          new Promise((r) => setTimeout(() => r(null), 2000)),
+        ]);
+        if (aiSuggestion) finalDidYouMean = { suggested: aiSuggestion, original: q, source: "ai" };
+      } catch { /* ignore */ }
+    }
+
+    // Merge hotel results into the result set (after the top organic results).
+    const mergedWithHotels = hotelResults.length > 0
+      ? [...merged.slice(0, 5), ...hotelResults.slice(0, 3), ...merged.slice(5)]
+      : merged;
+
+    const out = {
+      ...meta,
+      query: q,
+      results: mergedWithHotels,
+      ownIndexCount,
+      related,
+      didYouMean: finalDidYouMean,
+      siteFilter,
+      instant: aiSynthesis || instantOverride,
+      aiAvailable: isOpenRouterAvailable(),
+      hotelResults: hotelResults.length > 0 ? hotelResults.length : undefined,
+    };
     await cacheSet(key, out, SEARCH_TTL);
     // The eager slice already awaited top-5; fire-and-forget the rest so the
     // index keeps growing in the background without adding latency.
@@ -891,6 +958,85 @@ export function buildApp() {
     if (cached) return c.json({ ...cached, cached: true });
     const data = await metaImages(q);
     await cacheSet(key, data, IMAGE_TTL);
+    return c.json(data);
+  });
+
+  // Image proxy — serves thumbnail images through our server so the browser
+  // never contacts upstream CDNs directly. Validates MIME type and caches
+  // with a 1-hour immutable header. This fixes the "?" placeholder issue
+  // in the Images tab where thumbnails failed to load due to hotlink protection.
+  app.get("/api/image-proxy", async (c) => {
+    const url = (c.req.query("url") || "").trim();
+    return proxyImageUrl(url);
+  });
+
+  // OpenRouter AI endpoint — optional, requires OPENROUTER_API_KEY.
+  // Returns an AI-enhanced synthesis for the given query + result snippets.
+  // Falls back to null when the key is absent or the API is unavailable.
+  app.post("/api/ai/synthesise", async (c) => {
+    if (!isOpenRouterAvailable()) {
+      return c.json({ ok: false, error: "AI not configured. Set OPENROUTER_API_KEY." }, 503);
+    }
+    const body = await c.req.json().catch(() => ({}));
+    const q = (body.query || "").trim().slice(0, 300);
+    const results = Array.isArray(body.results) ? body.results.slice(0, 8) : [];
+    if (!q) return c.json({ ok: false, error: "Missing query" }, 400);
+    const cacheKey = `ai:synth:${q.toLowerCase()}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return c.json({ ok: true, text: cached, cached: true });
+    const text = await summariseResults(q, results);
+    if (text) await cacheSet(cacheKey, text, 30 * 60 * 1000);
+    return c.json({ ok: !!text, text: text || null });
+  });
+
+  // AI query expansion — returns alternative phrasings for a query.
+  app.get("/api/ai/expand", async (c) => {
+    if (!isOpenRouterAvailable()) {
+      return c.json({ ok: false, expansions: [] });
+    }
+    const q = (c.req.query("q") || "").trim().slice(0, 300);
+    if (!q) return c.json({ ok: false, expansions: [] });
+    const cacheKey = `ai:expand:${q.toLowerCase()}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return c.json({ ok: true, expansions: cached, cached: true });
+    const expansions = await expandQuery(q);
+    if (expansions.length) await cacheSet(cacheKey, expansions, 60 * 60 * 1000);
+    return c.json({ ok: true, expansions });
+  });
+
+  // ScamAdviser domain safety check — returns trust score and warnings.
+  app.get("/api/scamadviser", async (c) => {
+    const domain = (c.req.query("domain") || c.req.query("url") || "").trim();
+    if (!domain) return c.json({ ok: false, error: "Missing domain" }, 400);
+    const cacheKey = `scamadviser:${domain.toLowerCase()}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return c.json({ ok: true, ...cached, cached: true });
+    const result = await checkDomain(domain);
+    if (result) {
+      await cacheSet(cacheKey, result, 24 * 60 * 60 * 1000);
+      return c.json({ ok: true, ...result });
+    }
+    return c.json({ ok: false, error: "Could not fetch ScamAdviser data" }, 502);
+  });
+
+  // Trivago hotel search — returns non-sponsored hotel listings.
+  // Only activated for hotel/vacation-related queries.
+  app.get("/api/hotels", async (c) => {
+    const q = (c.req.query("q") || "").trim();
+    const location = (c.req.query("location") || "").trim();
+    const checkIn = (c.req.query("checkin") || "").trim();
+    const checkOut = (c.req.query("checkout") || "").trim();
+    if (!q) return c.json({ query: "", results: [] });
+    if (!isHotelQuery(q + " " + location)) {
+      return c.json({ query: q, results: [], note: "Not a hotel query" });
+    }
+    const cacheKey = `hotels:${q}:${location}:${checkIn}:${checkOut}`.toLowerCase();
+    const cached = await cacheGet(cacheKey);
+    if (cached) return c.json({ ...cached, cached: true });
+    const data = await searchHotels(q, { location, checkIn, checkOut });
+    if (data.results.length > 0) {
+      await cacheSet(cacheKey, data, 2 * 60 * 60 * 1000);
+    }
     return c.json(data);
   });
 

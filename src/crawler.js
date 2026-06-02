@@ -7,6 +7,7 @@ import { privateFetch, hostFromUrl, normaliseUrl, stripTags } from "./util.js";
 import {
   insertPage,
   nextCrawlTask,
+  nextCrawlTaskBatch,
   enqueueCrawl,
   dropFromQueue,
   recordCrawlFailure,
@@ -244,17 +245,21 @@ export function startCrawler(intervalMs = 1000) {
   const pump = async () => {
     // Pause crawling if heap is under pressure to avoid OOM on free-tier.
     if (checkMemoryPressure()) return;
-    while (inFlight < CONCURRENCY) {
-      let task = null;
-      try { task = await nextCrawlTask(); } catch { task = null; }
-      if (!task) return;
+    // Batch-fetch up to CONCURRENCY tasks in one DB query instead of one
+    // query per task. This dramatically reduces SQLite round-trips under
+    // sustained crawl load.
+    const available = CONCURRENCY - inFlight;
+    if (available <= 0) return;
+    let tasks = [];
+    try { tasks = await nextCrawlTaskBatch(Math.min(available * 2, 20)); } catch { tasks = []; }
+    if (!tasks.length) return;
+    for (const task of tasks) {
+      if (inFlight >= CONCURRENCY) break;
       const host = hostFromUrl(task.url) || "unknown";
-      // Only take the task if there's an open slot for this host; otherwise
-      // put it back and try the next one. `nextCrawlTask` already marks the
-      // task as taken, so we re-enqueue with a tiny backoff.
       const n = hostInFlight.get(host) || 0;
       const last = hostLastFetch.get(host) || 0;
       if (n >= PER_HOST || Date.now() - last < PER_HOST_MIN_GAP_MS) {
+        // Re-enqueue with a tiny delay so we don't spin on the same host.
         await dropFromQueue(task.url).catch(() => {});
         await enqueueCrawl(task.url).catch(() => {});
         continue;
