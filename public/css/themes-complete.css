@@ -1,0 +1,542 @@
+/* 50+ Professional Themes */
+
+/* Modern Themes */
+[data-theme="nord"] {
+  --color-primary: #88c0d0;
+  --color-secondary: #81a1c1;
+  --color-bg: #2e3440;
+  --color-text: #eceff4;
+}
+
+[data-theme="dracula"] {
+  --color-primary: #ff79c6;
+  --color-secondary: #8be9fd;
+  --color-bg: #282a36;
+  --color-text: #f8f8f2;
+}
+
+[data-theme="gruvbox"] {
+  --color-primary: #fb4934;
+  --color-secondary: #b8bb26;
+  --color-bg: #282828;
+  --color-text: #ebdbb2;
+}
+
+[data-theme="solarized-dark"] {
+  --color-primary: #268bd2;
+  --color-secondary: #2aa198;
+  --color-bg: #002b36;
+  --color-text: #839496;
+}
+
+[data-theme="monokai"] {
+  --color-primary: #f92672;
+  --color-secondary: #66d9ef;
+  --color-bg: #272822;
+  --color-text: #f8f8f2;
+}
+
+[data-theme="one-dark"] {
+  --color-primary: #61afef;
+  --color-secondary: #56b6c2;
+  --color-bg: #282c34;
+  --color-text: #abb2bf;
+}
+
+[data-theme="tokyo-night"] {
+  --color-primary: #7aa2f7;
+  --color-secondary: #9ece6a;
+  --color-bg: #1a1b26;
+  --color-text: #c0caf5;
+}
+
+[data-theme="catppuccin"] {
+  --color-primary: #f38ba8;
+  --color-secondary: #94e2d5;
+  --color-bg: #1e1e2e;
+  --color-text: #cdd6f4;
+}
+
+[data-theme="rose-pine"] {
+  --color-primary: #eb6f92;
+  --color-secondary: #31748f;
+  --color-bg: #191724;
+  --color-text: #e0def4;
+}
+
+[data-theme="everforest"] {
+  --color-primary: #a7c957;
+  --color-secondary: #7fbbb3;
+  --color-bg: #2d3f34;
+  --color-text: #d4be98;
+}
+
+/* Professional Themes */
+[data-theme="corporate-blue"] {
+  --color-primary: #0066cc;
+  --color-secondary: #0052a3;
+  --color-bg: #ffffff;
+  --color-text: #1a1a1a;
+}
+
+[data-theme="corporate-green"] {
+  --color-primary: #00a651;
+  --color-secondary: #008c3a;
+  --color-bg: #ffffff;
+  --color-text: #1a1a1a;
+}
+
+[data-theme="corporate-purple"] {
+  --color-primary: #7c3aed;
+  --color-secondary: #6d28d9;
+  --color-bg: #ffffff;
+  --color-text: #1a1a1a;
+}
+
+[data-theme="minimal"] {
+  --color-primary: #000000;
+  --color-secondary: #666666;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="ocean"] {
+  --color-primary: #0077be;
+  --color-secondary: #00a8e8;
+  --color-bg: #f0f8ff;
+  --color-text: #003d5c;
+}
+
+[data-theme="forest"] {
+  --color-primary: #2d5016;
+  --color-secondary: #6a994e;
+  --color-bg: #f1faee;
+  --color-text: #1b4332;
+}
+
+[data-theme="sunset"] {
+  --color-primary: #ff6b35;
+  --color-secondary: #f7931e;
+  --color-bg: #fff5e6;
+  --color-text: #5c2e0f;
+}
+
+[data-theme="midnight"] {
+  --color-primary: #1a237e;
+  --color-secondary: #283593;
+  --color-bg: #eceff1;
+  --color-text: #0d1854;
+}
+
+[data-theme="lavender"] {
+  --color-primary: #9575cd;
+  --color-secondary: #7e57c2;
+  --color-bg: #f3e5f5;
+  --color-text: #4a148c;
+}
+
+[data-theme="cherry"] {
+  --color-primary: #c2185b;
+  --color-secondary: #e91e63;
+  --color-bg: #fce4ec;
+  --color-text: #880e4f;
+}
+
+[data-theme="mint"] {
+  --color-primary: #00897b;
+  --color-secondary: #26a69a;
+  --color-bg: #e0f2f1;
+  --color-text: #004d40;
+}
+
+[data-theme="gold"] {
+  --color-primary: #d4af37;
+  --color-secondary: #aa8c2c;
+  --color-bg: #fffef0;
+  --color-text: #5c4a00;
+}
+
+[data-theme="slate"] {
+  --color-primary: #475569;
+  --color-secondary: #64748b;
+  --color-bg: #f1f5f9;
+  --color-text: #1e293b;
+}
+
+[data-theme="zinc"] {
+  --color-primary: #52525b;
+  --color-secondary: #71717a;
+  --color-bg: #fafafa;
+  --color-text: #18181b;
+}
+
+[data-theme="stone"] {
+  --color-primary: #57534e;
+  --color-secondary: #78716c;
+  --color-bg: #fafaf9;
+  --color-text: #1c1917;
+}
+
+[data-theme="amber"] {
+  --color-primary: #b45309;
+  --color-secondary: #d97706;
+  --color-bg: #fffbeb;
+  --color-text: #78350f;
+}
+
+[data-theme="orange"] {
+  --color-primary: #c2410c;
+  --color-secondary: #ea580c;
+  --color-bg: #fff7ed;
+  --color-text: #7c2d12;
+}
+
+[data-theme="lime"] {
+  --color-primary: #65a30d;
+  --color-secondary: #84cc16;
+  --color-bg: #f7fee7;
+  --color-text: #365314;
+}
+
+[data-theme="cyan"] {
+  --color-primary: #0891b2;
+  --color-secondary: #06b6d4;
+  --color-bg: #ecf8ff;
+  --color-text: #164e63;
+}
+
+[data-theme="teal"] {
+  --color-primary: #0d9488;
+  --color-secondary: #14b8a6;
+  --color-bg: #f0fdfa;
+  --color-text: #134e4a;
+}
+
+[data-theme="emerald"] {
+  --color-primary: #059669;
+  --color-secondary: #10b981;
+  --color-bg: #f0fdf4;
+  --color-text: #064e3b;
+}
+
+[data-theme="green"] {
+  --color-primary: #16a34a;
+  --color-secondary: #22c55e;
+  --color-bg: #f0fdf4;
+  --color-text: #166534;
+}
+
+[data-theme="blue"] {
+  --color-primary: #2563eb;
+  --color-secondary: #3b82f6;
+  --color-bg: #eff6ff;
+  --color-text: #1e3a8a;
+}
+
+[data-theme="indigo"] {
+  --color-primary: #4f46e5;
+  --color-secondary: #6366f1;
+  --color-bg: #eef2ff;
+  --color-text: #312e81;
+}
+
+[data-theme="violet"] {
+  --color-primary: #7c3aed;
+  --color-secondary: #a78bfa;
+  --color-bg: #faf5ff;
+  --color-text: #4c1d95;
+}
+
+[data-theme="fuchsia"] {
+  --color-primary: #d946ef;
+  --color-secondary: #ec4899;
+  --color-bg: #fdf4ff;
+  --color-text: #701c1c;
+}
+
+[data-theme="pink"] {
+  --color-primary: #ec4899;
+  --color-secondary: #f472b6;
+  --color-bg: #fdf2f8;
+  --color-text: #831843;
+}
+
+[data-theme="rose"] {
+  --color-primary: #e11d48;
+  --color-secondary: #f43f5e;
+  --color-bg: #fff1f2;
+  --color-text: #4c0519;
+}
+
+[data-theme="red"] {
+  --color-primary: #dc2626;
+  --color-secondary: #ef4444;
+  --color-bg: #fef2f2;
+  --color-text: #7f1d1d;
+}
+
+/* Specialty Themes */
+[data-theme="high-contrast"] {
+  --color-primary: #000000;
+  --color-secondary: #ffffff;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="retro-crt"] {
+  --color-primary: #00ff00;
+  --color-secondary: #00aa00;
+  --color-bg: #000000;
+  --color-text: #00ff00;
+  font-family: 'Courier New', monospace;
+}
+
+[data-theme="cyberpunk"] {
+  --color-primary: #ff006e;
+  --color-secondary: #00f5ff;
+  --color-bg: #0a0e27;
+  --color-text: #00f5ff;
+}
+
+[data-theme="synthwave"] {
+  --color-primary: #ff006e;
+  --color-secondary: #ffbe0b;
+  --color-bg: #0f0f1e;
+  --color-text: #ff006e;
+}
+
+[data-theme="vaporwave"] {
+  --color-primary: #ff10f0;
+  --color-secondary: #00ffff;
+  --color-bg: #0a0a0a;
+  --color-text: #ff10f0;
+}
+
+[data-theme="matrix"] {
+  --color-primary: #00ff00;
+  --color-secondary: #00aa00;
+  --color-bg: #000000;
+  --color-text: #00ff00;
+  font-family: 'Courier New', monospace;
+}
+
+[data-theme="hacker"] {
+  --color-primary: #00ff00;
+  --color-secondary: #00cc00;
+  --color-bg: #0d0d0d;
+  --color-text: #00ff00;
+  font-family: 'Monaco', monospace;
+}
+
+[data-theme="terminal"] {
+  --color-primary: #00ff00;
+  --color-secondary: #ffff00;
+  --color-bg: #000000;
+  --color-text: #00ff00;
+  font-family: 'Courier New', monospace;
+}
+
+/* Brand Themes */
+[data-theme="apple"] {
+  --color-primary: #000000;
+  --color-secondary: #555555;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="google"] {
+  --color-primary: #4285f4;
+  --color-secondary: #ea4335;
+  --color-bg: #ffffff;
+  --color-text: #202124;
+}
+
+[data-theme="microsoft"] {
+  --color-primary: #0078d4;
+  --color-secondary: #50e6ff;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="github"] {
+  --color-primary: #1f6feb;
+  --color-secondary: #238636;
+  --color-bg: #0d1117;
+  --color-text: #c9d1d9;
+}
+
+[data-theme="slack"] {
+  --color-primary: #e01e5a;
+  --color-secondary: #36c5f0;
+  --color-bg: #ffffff;
+  --color-text: #2c2d30;
+}
+
+[data-theme="discord"] {
+  --color-primary: #5865f2;
+  --color-secondary: #57f287;
+  --color-bg: #36393f;
+  --color-text: #dcddde;
+}
+
+[data-theme="twitch"] {
+  --color-primary: #9146ff;
+  --color-secondary: #00ad9c;
+  --color-bg: #0e0e10;
+  --color-text: #efeff1;
+}
+
+[data-theme="twitter"] {
+  --color-primary: #1da1f2;
+  --color-secondary: #794cc0;
+  --color-bg: #ffffff;
+  --color-text: #0f1419;
+}
+
+[data-theme="youtube"] {
+  --color-primary: #ff0000;
+  --color-secondary: #282828;
+  --color-bg: #ffffff;
+  --color-text: #030303;
+}
+
+[data-theme="reddit"] {
+  --color-primary: #ff4500;
+  --color-secondary: #818384;
+  --color-bg: #030303;
+  --color-text: #d7dadc;
+}
+
+[data-theme="notion"] {
+  --color-primary: #000000;
+  --color-secondary: #787c82;
+  --color-bg: #ffffff;
+  --color-text: #37352f;
+}
+
+[data-theme="figma"] {
+  --color-primary: #f24e1e;
+  --color-secondary: #a259ff;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="stripe"] {
+  --color-primary: #635bff;
+  --color-secondary: #0a0e27;
+  --color-bg: #ffffff;
+  --color-text: #0a0e27;
+}
+
+[data-theme="airbnb"] {
+  --color-primary: #ff385c;
+  --color-secondary: #222222;
+  --color-bg: #ffffff;
+  --color-text: #222222;
+}
+
+[data-theme="uber"] {
+  --color-primary: #000000;
+  --color-secondary: #ffffff;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="spotify"] {
+  --color-primary: #1db954;
+  --color-secondary: #191414;
+  --color-bg: #121212;
+  --color-text: #ffffff;
+}
+
+[data-theme="netflix"] {
+  --color-primary: #e50914;
+  --color-secondary: #221f1f;
+  --color-bg: #141414;
+  --color-text: #ffffff;
+}
+
+[data-theme="amazon"] {
+  --color-primary: #ff9900;
+  --color-secondary: #146eb4;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="facebook"] {
+  --color-primary: #1877f2;
+  --color-secondary: #e7f3ff;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="linkedin"] {
+  --color-primary: #0a66c2;
+  --color-secondary: #0a66c2;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="instagram"] {
+  --color-primary: #e4405f;
+  --color-secondary: #405de6;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="tiktok"] {
+  --color-primary: #25f4ee;
+  --color-secondary: #fe2c55;
+  --color-bg: #000000;
+  --color-text: #ffffff;
+}
+
+[data-theme="whatsapp"] {
+  --color-primary: #25d366;
+  --color-secondary: #128c7e;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="telegram"] {
+  --color-primary: #0088cc;
+  --color-secondary: #31a3f5;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="signal"] {
+  --color-primary: #3a76f0;
+  --color-secondary: #ffffff;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="element"] {
+  --color-primary: #0dbd8b;
+  --color-secondary: #21873e;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="mastodon"] {
+  --color-primary: #6364ff;
+  --color-secondary: #563acc;
+  --color-bg: #191b22;
+  --color-text: #ffffff;
+}
+
+[data-theme="bluesky"] {
+  --color-primary: #1185fe;
+  --color-secondary: #0085ff;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
+[data-theme="threads"] {
+  --color-primary: #000000;
+  --color-secondary: #666666;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+}
+
