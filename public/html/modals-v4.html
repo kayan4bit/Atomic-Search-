@@ -1,0 +1,173 @@
+<!-- Atomic Search v4 — Additional Modals and UI Elements -->
+
+<!-- Text Tools Modal -->
+<div id="text-tools-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="text-tools-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="text-tools-title">Text Tools</h2>
+      <button class="icon-btn modal-close" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="text-tools-tabs">
+        <button class="tool-tab active" data-tool="summarize">Summarize</button>
+        <button class="tool-tab" data-tool="sentiment">Sentiment</button>
+        <button class="tool-tab" data-tool="entities">Entities</button>
+        <button class="tool-tab" data-tool="translate">Translate</button>
+        <button class="tool-tab" data-tool="code">Code Gen</button>
+        <button class="tool-tab" data-tool="explain">Explain</button>
+      </div>
+
+      <!-- Summarize -->
+      <div class="tool-panel" data-tool="summarize">
+        <textarea id="summarize-input" placeholder="Paste text to summarize..." rows="6"></textarea>
+        <button id="summarize-text-btn" class="btn">Summarize</button>
+        <div id="summarize-output"></div>
+      </div>
+
+      <!-- Sentiment -->
+      <div class="tool-panel" data-tool="sentiment" style="display:none">
+        <textarea id="sentiment-input" placeholder="Paste text to analyze..." rows="6"></textarea>
+        <button id="sentiment-btn" class="btn">Analyze Sentiment</button>
+        <div id="sentiment-output"></div>
+      </div>
+
+      <!-- Entities -->
+      <div class="tool-panel" data-tool="entities" style="display:none">
+        <textarea id="entities-input" placeholder="Paste text to extract entities..." rows="6"></textarea>
+        <button id="entities-btn" class="btn">Extract Entities</button>
+        <div id="entities-output"></div>
+      </div>
+
+      <!-- Translate -->
+      <div class="tool-panel" data-tool="translate" style="display:none">
+        <textarea id="translate-input" placeholder="Paste text to translate..." rows="6"></textarea>
+        <select id="translate-lang">
+          <option value="Spanish">Spanish</option>
+          <option value="French">French</option>
+          <option value="German">German</option>
+          <option value="Chinese">Chinese</option>
+          <option value="Japanese">Japanese</option>
+          <option value="Arabic">Arabic</option>
+          <option value="Portuguese">Portuguese</option>
+          <option value="Russian">Russian</option>
+        </select>
+        <button id="translate-btn" class="btn">Translate</button>
+        <div id="translate-output"></div>
+      </div>
+
+      <!-- Code Generation -->
+      <div class="tool-panel" data-tool="code" style="display:none">
+        <input id="code-input" type="text" placeholder="Describe what you want to code..." />
+        <select id="code-lang">
+          <option value="javascript">JavaScript</option>
+          <option value="python">Python</option>
+          <option value="typescript">TypeScript</option>
+          <option value="rust">Rust</option>
+          <option value="go">Go</option>
+          <option value="java">Java</option>
+          <option value="cpp">C++</option>
+          <option value="sql">SQL</option>
+        </select>
+        <button id="code-btn" class="btn">Generate Code</button>
+        <div id="code-output"></div>
+      </div>
+
+      <!-- Explain -->
+      <div class="tool-panel" data-tool="explain" style="display:none">
+        <input id="explain-input" type="text" placeholder="What concept do you want explained?" />
+        <button id="explain-btn" class="btn">Explain</button>
+        <div id="explain-output"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scam Check Modal -->
+<div id="scam-check-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="scam-check-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="scam-check-title">Domain Safety Check</h2>
+      <button class="icon-btn modal-close" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="hint">Check if a domain is safe using ScamAdviser's database.</p>
+      <div class="scan-row">
+        <input id="scam-check-input" type="text" placeholder="example.com" />
+        <button id="scam-check-btn" class="btn">Check Domain</button>
+      </div>
+      <div id="scam-check-output"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Fact Check Modal -->
+<div id="fact-check-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="fact-check-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="fact-check-title">Fact Checker</h2>
+      <button class="icon-btn modal-close" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="hint">Verify claims against current search results.</p>
+      <div class="scan-row">
+        <input id="fact-check-input" type="text" placeholder="Enter a claim to fact-check..." />
+        <button id="fact-check-btn" class="btn">Check Fact</button>
+      </div>
+      <div id="fact-check-output"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Performance Monitor Modal -->
+<div id="perf-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="perf-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="perf-title">Performance Metrics</h2>
+      <button class="icon-btn modal-close" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body"></div>
+  </div>
+</div>
+
+<!-- Topbar additions (add to existing topbar) -->
+<div class="topbar-extras" style="display: flex; gap: 8px; margin-left: auto;">
+  <button id="open-text-tools" class="icon-btn" title="Text Tools" aria-label="Open text tools">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    </svg>
+  </button>
+  <button id="open-scam-check" class="icon-btn" title="Check Domain Safety" aria-label="Check domain safety">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+    </svg>
+  </button>
+  <button id="open-fact-check" class="icon-btn" title="Fact Check" aria-label="Fact check claims">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <polyline points="12 6 12 12 16 14"></polyline>
+    </svg>
+  </button>
+  <button id="show-perf-btn" class="icon-btn" title="Performance" aria-label="Show performance metrics">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 17"></polyline>
+      <polyline points="17 6 23 6 23 12"></polyline>
+    </svg>
+  </button>
+</div>
+

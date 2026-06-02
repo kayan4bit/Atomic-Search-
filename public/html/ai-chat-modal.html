@@ -1,0 +1,38 @@
+<!-- AI Chat Modal — Add to index.html before closing body tag -->
+<div id="ai-chat-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="ai-chat-title">
+  <div class="modal" style="position: fixed; bottom: 20px; right: 20px; width: 400px; height: 500px; border-radius: 12px;">
+    <div class="modal-head ai-chat-header">
+      <h3 id="ai-chat-title">AI Assistant</h3>
+      <button id="ai-chat-close" class="icon-btn modal-close" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div id="ai-chat-messages" class="modal-body" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;"></div>
+    <form id="ai-chat-form" style="padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px;">
+      <input
+        id="ai-chat-input"
+        type="text"
+        placeholder="Ask me anything..."
+        aria-label="Chat message"
+        autocomplete="off"
+        style="flex: 1; padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text); font-size: 14px; outline: none;"
+      />
+      <button type="submit" class="icon-btn" title="Send" aria-label="Send message">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- AI Chat Button — Add to topbar -->
+<button id="open-ai-chat" class="icon-btn" title="AI Chat" aria-label="Open AI chat">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+  </svg>
+</button>
+

@@ -1,0 +1,440 @@
+/* Atomic Search v4 — New Features CSS */
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Text Tools */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.text-tools-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.tool-tab {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tool-tab:hover {
+  color: var(--text);
+}
+
+.tool-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tool-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tool-panel textarea,
+.tool-panel input,
+.tool-panel select {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.tool-panel textarea:focus,
+.tool-panel input:focus,
+.tool-panel select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.tool-panel textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.result-text,
+.summary-result,
+.synthesis-result {
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border-left: 4px solid var(--accent);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.sentiment-result {
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.sentiment-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.sentiment-badge.positive {
+  background: #d4edda;
+  color: #155724;
+}
+
+.sentiment-badge.negative {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.sentiment-badge.neutral {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+.entities-result {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.entity-group {
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.entity-group h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.entity-group ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.entity-group li {
+  padding: 4px 8px;
+  background: var(--accent-dim);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Scam Detection */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.scam-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.scam-badge.safe {
+  background: #d4edda;
+  color: #155724;
+}
+
+.scam-badge.caution {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.scam-badge.warning {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.scam-badge.danger {
+  background: #f5c6cb;
+  color: #721c24;
+  font-weight: 700;
+}
+
+.scam-check-result {
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  margin-top: 12px;
+}
+
+.scam-check-result h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+}
+
+.scam-score,
+.scam-level,
+.reports-count,
+.blacklist-warning {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.scam-score:last-child,
+.scam-level:last-child,
+.reports-count:last-child {
+  border-bottom: none;
+}
+
+.score-label,
+.level-label {
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.blacklist-warning {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 8px;
+  border-radius: 4px;
+  border: none;
+  margin: 8px 0;
+}
+
+.scam-link {
+  display: inline-block;
+  margin-top: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.scam-link:hover {
+  text-decoration: underline;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Fact Check */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.fact-check-result {
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  margin-top: 12px;
+}
+
+.verdict {
+  font-size: 20px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.explanation {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Performance Stats */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.perf-stats {
+  padding: 16px;
+}
+
+.perf-stats h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.stat .label {
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.stat .value {
+  color: var(--accent);
+  font-family: monospace;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Image Loading States */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+img.loaded {
+  animation: fadeIn 0.3s ease-out;
+}
+
+img.load-error {
+  opacity: 0.5;
+  border: 1px dashed var(--border);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Hotel Results */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.hotel-card {
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+
+.hotel-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.hotel-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.hotel-card p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.hotel-card .rating {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #fff3cd;
+  color: #856404;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.hotel-card .price {
+  display: inline-block;
+  padding: 4px 8px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hotel-card a {
+  display: inline-block;
+  margin-top: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.hotel-card a:hover {
+  text-decoration: underline;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Loading States */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.loading {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Error States */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.error {
+  padding: 12px;
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Responsive */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .text-tools-tabs {
+    flex-wrap: wrap;
+  }
+
+  .tool-tab {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .scam-check-result,
+  .fact-check-result,
+  .result-text {
+    font-size: 13px;
+  }
+}
+

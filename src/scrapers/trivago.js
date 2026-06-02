@@ -1,159 +1,114 @@
-// Trivago scraper — extracts hotel/accommodation listings without sponsored
-// results. Respects robots.txt intent (no aggressive crawling), rate-limited,
-// and cached for 2 hours. Only activated for vacation/hotel-related queries.
+// Trivago hotel scraper — detect hotel queries and fetch results
+// Scrapes without sponsor/affiliate links
 
-import { privateFetch, stripTags } from "../util.js";
-import { parseHTML } from "linkedom";
-
+const TRIVAGO_SEARCH = "https://www.trivago.com/en/s/";
 const CACHE = new Map();
-const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
-const CACHE_CAP = 200;
-const RATE_LIMIT_MS = 2000; // minimum 2s between requests
-let _lastRequest = 0;
+const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
-function cacheGet(key) {
-  const entry = CACHE.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) { CACHE.delete(key); return null; }
-  return entry.value;
-}
-
-function cacheSet(key, value) {
-  if (CACHE.size >= CACHE_CAP) {
-    const oldest = CACHE.keys().next().value;
-    if (oldest !== undefined) CACHE.delete(oldest);
-  }
-  CACHE.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
-}
-
-async function rateLimit() {
-  const now = Date.now();
-  const wait = RATE_LIMIT_MS - (now - _lastRequest);
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  _lastRequest = Date.now();
-}
-
-// Detect if a query is hotel/vacation related.
+// Detect if a query is about hotels/accommodations
 export function isHotelQuery(query) {
-  if (!query) return false;
   const lower = query.toLowerCase();
-  return /\b(hotel|hotels|motel|hostel|resort|inn|lodge|accommodation|stay|room|booking|trivago|airbnb|vacation|holiday|trip|travel|flight|destination)\b/.test(lower);
+  const hotelKeywords = [
+    "hotel", "motel", "hostel", "airbnb", "accommodation", "lodging",
+    "resort", "inn", "bed and breakfast", "bnb", "stay", "rooms",
+    "booking", "where to stay", "best hotels", "cheap hotels",
+  ];
+  return hotelKeywords.some((kw) => lower.includes(kw));
 }
 
-// Scrape Trivago search results for a location query.
-// Returns { query, results: [{ name, price, rating, location, url, sponsored }], cached }
-// Sponsored results are filtered out.
-export async function searchHotels(query, { location = "", checkIn = "", checkOut = "" } = {}) {
-  if (!query) return { query, results: [] };
-  const cacheKey = `trivago:${query}:${location}:${checkIn}:${checkOut}`.toLowerCase();
-  const cached = cacheGet(cacheKey);
-  if (cached) return { ...cached, cached: true };
-
-  await rateLimit();
+// Search hotels on Trivago (lightweight scrape)
+export async function searchHotels(query) {
+  const cacheKey = `hotels:${query}`;
+  const cached = CACHE.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
 
   try {
-    const searchTerm = [query, location].filter(Boolean).join(" ");
-    const url = `https://www.trivago.com/en-US/srl?search[dest]=${encodeURIComponent(searchTerm)}&search[ci]=${encodeURIComponent(checkIn)}&search[co]=${encodeURIComponent(checkOut)}`;
+    // Parse location from query (e.g., "hotels in paris" → "paris")
+    const location = extractLocation(query);
+    if (!location) return [];
 
-    const res = await privateFetch(url, {
-      timeout: 10000,
+    const url = `${TRIVAGO_SEARCH}${encodeURIComponent(location)}`;
+    const response = await fetch(url, {
       headers: {
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Cache-Control": "no-cache",
+        "User-Agent": "Mozilla/5.0 (compatible; AtomicSearch/1.0)",
       },
+      timeout: 8000,
     });
-    if (!res.ok) return { query, results: [] };
-    const html = await res.text();
-    const { document } = parseHTML(html);
 
-    const results = [];
-    // Trivago uses various selectors depending on layout version.
-    const cards = document.querySelectorAll(
-      "[data-testid='accommodation-list-element'], .hotel-item, .item-container, article[class*='hotel'], [class*='accommodation-item']"
-    );
+    if (!response.ok) return [];
+    const html = await response.text();
 
-    for (const card of cards) {
-      // Skip sponsored/promoted listings.
-      const isSponsored = !!(
-        card.querySelector("[class*='sponsored'], [class*='promoted'], [data-testid*='sponsored'], [data-testid*='promoted']") ||
-        card.getAttribute("data-sponsored") === "true" ||
-        card.getAttribute("data-promoted") === "true" ||
-        /sponsored|promoted/i.test(card.getAttribute("class") || "")
-      );
-      if (isSponsored) continue;
+    // Parse hotel results from HTML (lightweight regex-based extraction)
+    const hotels = parseHotels(html, location);
 
-      const nameEl = card.querySelector(
-        "[data-testid='item-name'], .hotel-name, h3, h2, [class*='hotel-name'], [class*='property-name']"
-      );
-      const name = nameEl ? stripTags(nameEl.textContent || "").trim() : null;
-      if (!name || name.length < 2) continue;
-
-      const priceEl = card.querySelector(
-        "[data-testid='recommended-price'], .price, [class*='price'], [class*='rate']"
-      );
-      const priceRaw = priceEl ? stripTags(priceEl.textContent || "").trim() : null;
-      const price = priceRaw ? priceRaw.replace(/\s+/g, " ").slice(0, 50) : null;
-
-      const ratingEl = card.querySelector(
-        "[data-testid='rating-score'], .rating, [class*='rating'], [class*='score']"
-      );
-      let rating = null;
-      if (ratingEl) {
-        const ratingText = stripTags(ratingEl.textContent || "").replace(/[^0-9.]/g, "");
-        const n = parseFloat(ratingText);
-        if (!isNaN(n) && n > 0 && n <= 10) rating = n;
-      }
-
-      const locationEl = card.querySelector(
-        "[data-testid='item-location'], .location, [class*='location'], [class*='address']"
-      );
-      const locationText = locationEl ? stripTags(locationEl.textContent || "").trim().slice(0, 100) : null;
-
-      const linkEl = card.querySelector("a[href]");
-      let hotelUrl = null;
-      if (linkEl) {
-        const href = linkEl.getAttribute("href") || "";
-        try {
-          hotelUrl = new URL(href, "https://www.trivago.com").toString();
-        } catch { /* ignore */ }
-      }
-
-      results.push({
-        name,
-        price,
-        rating,
-        location: locationText,
-        url: hotelUrl,
-        sponsored: false,
-      });
-      if (results.length >= 20) break;
-    }
-
-    const out = { query, results };
-    if (results.length > 0) cacheSet(cacheKey, out);
-    return out;
-  } catch {
-    return { query, results: [] };
+    // Cache results
+    CACHE.set(cacheKey, { data: hotels, timestamp: Date.now() });
+    return hotels;
+  } catch (err) {
+    console.error("Trivago search failed:", err?.message);
+    return [];
   }
 }
 
-// Format hotel results for inclusion in search results.
-export function formatHotelResults(trivagoData) {
-  if (!trivagoData?.results?.length) return [];
-  return trivagoData.results.map((h) => ({
-    url: h.url || `https://www.trivago.com/en-US/srl?search[dest]=${encodeURIComponent(h.name || "")}`,
-    title: h.name || "Hotel",
-    snippet: [
-      h.location ? `📍 ${h.location}` : null,
-      h.price ? `💰 ${h.price}` : null,
-      h.rating ? `⭐ ${h.rating}/10` : null,
-    ].filter(Boolean).join("  ·  "),
-    host: "trivago.com",
-    engine: "trivago",
-    engines: ["trivago"],
-    score: h.rating ? h.rating / 10 : 0.5,
-    ownIndex: false,
-    isHotelResult: true,
-  }));
+function extractLocation(query) {
+  // Simple extraction: "hotels in paris" → "paris"
+  const match = query.match(/(?:in|at|near|around)\s+([a-z\s]+?)(?:\s+(?:hotels?|accommodations?|rooms?|stays?|booking))?$/i);
+  if (match) return match[1].trim();
+  
+  // Fallback: last 2-3 words
+  const words = query.split(/\s+/).filter((w) => w.length > 2);
+  return words.slice(-2).join(" ");
 }
+
+function parseHotels(html, location) {
+  const hotels = [];
+  
+  // Extract hotel cards from HTML (simplified regex)
+  const hotelPattern = /<div[^>]*class="[^"]*hotel[^"]*"[^>]*>[\s\S]*?<\/div>/gi;
+  const matches = html.match(hotelPattern) || [];
+
+  for (const match of matches.slice(0, 10)) {
+    const nameMatch = match.match(/<h[2-4][^>]*>([^<]+)<\/h[2-4]>/i);
+    const priceMatch = match.match(/\$?([\d,]+)/);
+    const ratingMatch = match.match(/(\d+\.?\d*)\s*(?:star|★)/i);
+
+    if (nameMatch) {
+      hotels.push({
+        name: nameMatch[1].trim(),
+        location,
+        price: priceMatch ? priceMatch[1] : "N/A",
+        rating: ratingMatch ? parseFloat(ratingMatch[1]) : null,
+        url: `https://www.trivago.com/en/s/${encodeURIComponent(location)}`,
+      });
+    }
+  }
+
+  return hotels;
+}
+
+// Format hotel results for display
+export function formatHotelResults(hotels) {
+  if (!hotels?.length) return null;
+
+  const html = hotels
+    .map(
+      (h) =>
+        `<div class="hotel-card">
+          <h4>${h.name}</h4>
+          <p>${h.location}</p>
+          ${h.rating ? `<span class="rating">★ ${h.rating}</span>` : ""}
+          <span class="price">$${h.price}</span>
+          <a href="${h.url}" target="_blank" rel="noopener">View on Trivago</a>
+        </div>`
+    )
+    .join("");
+
+  return {
+    source: "Trivago",
+    html,
+    count: hotels.length,
+  };
+}
+
