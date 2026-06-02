@@ -157,7 +157,7 @@ site are always in sync — even across Render's free-tier deploy wipes.
 
 ## Terms of Service
 
-_Last updated: 2026. These terms apply to atomicsearch.io and any other
+_Last updated: 2026. These terms apply to atomicsearch.up.railway.app and the atomic foundation and any other
 deployment of this codebase. They describe what the software does and the
 promises it actually keeps._
 
