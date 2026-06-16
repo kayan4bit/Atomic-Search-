@@ -128,7 +128,7 @@
         body.querySelectorAll(".settings-tab").forEach((t) => t.classList.remove("active"));
         tab.classList.add("active");
         body.querySelectorAll(".settings-section").forEach((s) => {
-          s.style.display = s.getAttribute("data-section") === tabName ? "block" : "none";
+          s.classList.toggle("active", s.getAttribute("data-section") === tabName);
         });
       });
     });
@@ -139,21 +139,138 @@
 
   function renderAppearanceTab() {
     return `
-      <div class="settings-section" data-section="appearance">
+      <div class="settings-section active" data-section="appearance">
         <div class="settings-section-title">Theme</div>
         <div class="setting-item">
           <div class="setting-label">
             <span class="setting-label-text">Color Scheme</span>
-            <span class="setting-hint">Choose your preferred theme</span>
+            <span class="setting-hint">Choose your preferred theme — stored locally only</span>
           </div>
-          <select class="setting-control" data-setting="theme">
-            <option value="system">System (auto)</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="quantum">Quantum</option>
-            <option value="cyberpunk">Cyberpunk</option>
-            <option value="matrix">Matrix</option>
-            <option value="amoled">AMOLED Black</option>
+          <select class="setting-control" data-setting="theme" id="settings-theme-select">
+            <option value="system">System (auto dark/light)</option>
+            <optgroup label="UCX">
+              <option value="ucx">UCX Industry</option>
+            </optgroup>
+            <optgroup label="Futuristic">
+              <option value="quantum">Quantum (neon grid)</option>
+              <option value="cyberpunk">Cyberpunk</option>
+              <option value="synthwave">Synthwave</option>
+              <option value="vaporwave">Vaporwave</option>
+              <option value="plasma">Plasma</option>
+              <option value="matrix">Matrix</option>
+              <option value="hacker">Hacker</option>
+              <option value="carbon">Carbon Pro</option>
+              <option value="obsidian">Obsidian</option>
+              <option value="amoled">AMOLED Black</option>
+            </optgroup>
+            <optgroup label="Dark">
+              <option value="atom-dark">Atom Dark</option>
+              <option value="tokyo-night">Tokyo Night</option>
+              <option value="catppuccin-mocha">Catppuccin Mocha</option>
+              <option value="rose-pine">Rosé Pine</option>
+              <option value="midnight">Midnight</option>
+              <option value="neon">Neon</option>
+              <option value="dracula">Dracula</option>
+              <option value="nord">Nord</option>
+              <option value="gruvbox">Gruvbox</option>
+              <option value="sunset">Sunset</option>
+              <option value="ocean">Ocean</option>
+              <option value="monokai">Monokai</option>
+              <option value="nightfall">Nightfall</option>
+              <option value="solarized-dark">Solarized Dark</option>
+              <option value="one-dark">One Dark</option>
+              <option value="github-dark">GitHub Dark</option>
+              <option value="everforest">Everforest</option>
+              <option value="ayu-mirage">Ayu Mirage</option>
+            </optgroup>
+            <optgroup label="Light">
+              <option value="atom-light">Atom Light</option>
+              <option value="catppuccin-latte">Catppuccin Latte</option>
+              <option value="google">Google Classic</option>
+              <option value="solar">Solar</option>
+              <option value="pastel">Pastel</option>
+              <option value="arctic">Arctic</option>
+              <option value="sunrise">Sunrise</option>
+              <option value="paper">Paper</option>
+              <option value="mint">Mint</option>
+              <option value="lavender">Lavender</option>
+              <option value="solarized-light">Solarized Light</option>
+              <option value="github-light">GitHub Light</option>
+              <option value="candy">Candy</option>
+            </optgroup>
+            <optgroup label="New — Professional Dark">
+              <option value="slate">Slate</option>
+              <option value="indigo">Indigo</option>
+              <option value="emerald">Emerald</option>
+              <option value="rose">Rose</option>
+              <option value="amber">Amber</option>
+              <option value="teal">Teal</option>
+              <option value="violet">Violet</option>
+              <option value="crimson">Crimson</option>
+              <option value="sapphire">Sapphire</option>
+              <option value="copper">Copper</option>
+              <option value="moonlight">Moonlight</option>
+              <option value="dusk">Dusk</option>
+              <option value="graphite">Graphite</option>
+              <option value="midnight-blue">Midnight Blue</option>
+              <option value="warm-dark">Warm Dark</option>
+            </optgroup>
+            <optgroup label="New — Professional Light">
+              <option value="ivory">Ivory</option>
+              <option value="chalk">Chalk</option>
+              <option value="sky">Sky</option>
+              <option value="sage">Sage</option>
+              <option value="blush">Blush</option>
+              <option value="lemon">Lemon</option>
+            </optgroup>
+            <optgroup label="Retro">
+              <option value="commodore64">Commodore 64</option>
+              <option value="atari">Atari</option>
+              <option value="apple2">Apple II</option>
+              <option value="dos">DOS</option>
+              <option value="win95">Windows 95</option>
+            </optgroup>
+            <optgroup label="Anime">
+              <option value="steinsgate">Steins;Gate</option>
+              <option value="evangelion">Evangelion</option>
+              <option value="akira">Akira</option>
+              <option value="ghost-in-shell">Ghost in the Shell</option>
+            </optgroup>
+            <optgroup label="Gaming">
+              <option value="minecraft">Minecraft</option>
+              <option value="terraria">Terraria</option>
+              <option value="stardew">Stardew Valley</option>
+              <option value="hollow-knight">Hollow Knight</option>
+            </optgroup>
+            <optgroup label="Brand-inspired">
+              <option value="github">GitHub</option>
+              <option value="stripe">Stripe</option>
+              <option value="notion">Notion</option>
+              <option value="discord">Discord</option>
+            </optgroup>
+            <optgroup label="Seasonal">
+              <option value="halloween">Halloween</option>
+              <option value="christmas">Christmas</option>
+              <option value="valentine">Valentine</option>
+            </optgroup>
+            <optgroup label="Accessibility">
+              <option value="high-contrast">High Contrast (A11y)</option>
+              <option value="high-contrast-plus">High Contrast Plus</option>
+              <option value="dyslexia">Dyslexia-friendly</option>
+              <option value="deuteranopia">Colorblind (Deuteranopia)</option>
+              <option value="protanopia">Colorblind (Protanopia)</option>
+              <option value="tritanopia">Colorblind (Tritanopia)</option>
+            </optgroup>
+            <optgroup label="Mood">
+              <option value="aurora">Aurora</option>
+              <option value="blood-moon">Blood Moon</option>
+              <option value="forest">Forest</option>
+              <option value="deep-sea">Deep Sea</option>
+              <option value="cozy">Cozy</option>
+              <option value="energetic">Energetic</option>
+              <option value="calm">Calm</option>
+              <option value="focused">Focused</option>
+            </optgroup>
           </select>
         </div>
 
@@ -190,7 +307,7 @@
 
   function renderSearchTab() {
     return `
-      <div class="settings-section" data-section="search" style="display:none">
+      <div class="settings-section" data-section="search">
         <div class="settings-section-title">Search Behavior</div>
         <div class="setting-item">
           <div class="setting-label">
@@ -234,7 +351,7 @@
 
   function renderPrivacyTab() {
     return `
-      <div class="settings-section" data-section="privacy" style="display:none">
+      <div class="settings-section" data-section="privacy">
         <div class="settings-section-title">Safety & Filtering</div>
         <div class="setting-item">
           <div class="setting-label">
@@ -281,7 +398,7 @@
 
   function renderAITab() {
     return `
-      <div class="settings-section" data-section="ai" style="display:none">
+      <div class="settings-section" data-section="ai">
         <div class="settings-section-title">AI Enhancements</div>
         <div class="setting-item">
           <div class="setting-label">
@@ -320,7 +437,7 @@
 
   function renderPerformanceTab() {
     return `
-      <div class="settings-section" data-section="performance" style="display:none">
+      <div class="settings-section" data-section="performance">
         <div class="settings-section-title">Optimization</div>
         <div class="setting-item">
           <div class="setting-label">
@@ -366,7 +483,7 @@
 
   function renderAdvancedTab() {
     return `
-      <div class="settings-section" data-section="advanced" style="display:none">
+      <div class="settings-section" data-section="advanced">
         <div class="settings-section-title">Advanced Options</div>
         <div class="setting-item">
           <div class="setting-label">
