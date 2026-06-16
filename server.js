@@ -9,6 +9,7 @@ import { buildApp } from "./src/app.js";
 import { startCrawler } from "./src/crawler.js";
 import { startIndexSync } from "./src/git_sync.js";
 import { startMetasearchScraper } from "./src/metasearch_scraper.js";
+import { startFastIndexer } from "./src/fast-indexer.js";
 
 const port = Number(process.env.PORT) || 3000;
 
@@ -45,6 +46,12 @@ async function main() {
   // Crawler runs after the restore completes, so the first page it writes
   // lands alongside the restored snapshot instead of on top of an empty DB.
   startCrawler(5000);
+
+  // Fast indexer — parallel batch processing with priority queues and
+  // bloom-filter dedup. Runs continuously in the background alongside the
+  // standard crawler. Speed is controlled by INDEXER_SPEED env var
+  // (slow / normal / fast / turbo). Defaults to "normal".
+  startFastIndexer();
 
   // Optional meta search scraper — feeds external result URLs into the
   // crawler queue. Only active when ENABLE_METASEARCH=1 is set.

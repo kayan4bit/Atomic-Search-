@@ -38,6 +38,15 @@ import {
 // Optional scrapers — only activated for relevant query types.
 import { checkDomain } from "./scrapers/scamadviser.js";
 import { isHotelQuery, searchHotels, formatHotelResults } from "./scrapers/trivago.js";
+// New v2 modules — fast indexer, enhanced ranking, website summarizer, features.
+import { startFastIndexer, getIndexerMetrics, submitUrls, indexNow } from "./fast-indexer.js";
+import { summarizeWebsite, detectLanguage, analyzeSentiment } from "./website-summarizer.js";
+import {
+  getFreshnessLabel, getReadingTime, getDomainReputation, checkSSL,
+  detectTopics, getTrendingSearches, exportResultsAsJson, exportResultsAsCsv,
+  parseBooleanQuery, listFeatures, getFeature,
+} from "./features.js";
+import { updateIdf, buildRelatedSearches, expandQueryLocally, diversifyResults } from "./ranking-engine.js";
 
 const SEARCH_TTL = 60 * 60 * 1000; // 60 min — less re-fetching, still fresh enough
 const IMAGE_TTL = 30 * 60 * 1000;
@@ -947,6 +956,10 @@ export function buildApp() {
     // Also seed every URL the meta engines returned (not just the
     // re-ranked, de-duplicated slice) so tail results feed the crawler.
     seedFromSearch((meta.results || []).map((r) => r.url)).catch(() => {});
+    // Update IDF table with this result set for improved future ranking.
+    updateIdf(mergedWithHotels);
+    // Submit top result URLs to the fast indexer at high priority.
+    submitUrls(mergedWithHotels.slice(0, 10).map((r) => r.url), 8);
     return c.json(out);
   }
 
@@ -1189,6 +1202,92 @@ export function buildApp() {
   app.get("/api/v1/images", v1Forward("/api/images"));
   app.get("/api/v1/stats", v1Forward("/api/stats"));
   app.get("/api/v1/health", v1Forward("/api/health"));
+
+  // ── Website Summarizer ────────────────────────────────────────────────────
+  // Fetches a URL, extracts main content, and generates an AI summary.
+  // Cached for 24 hours. Falls back to heuristic extraction without AI key.
+  app.get("/api/summarize", async (c) => {
+    const url = (c.req.query("url") || "").trim();
+    const length = (c.req.query("length") || "medium").trim();
+    if (!url || !isSafeUrl(url)) {
+      return c.json({ ok: false, error: "Invalid or missing URL" }, 400);
+    }
+    if (isNsfwUrl(url)) {
+      return c.json({ ok: false, error: "URL domain is blocked" }, 400);
+    }
+    const ck = `summarize:${url}:${length}`;
+    const cached = await cacheGet(ck).catch(() => null);
+    if (cached) return c.json({ ok: true, ...cached, cached: true });
+    const result = await summarizeWebsite(url, { length }).catch(() => null);
+    if (!result) return c.json({ ok: false, error: "Could not fetch or summarize URL" }, 502);
+    await cacheSet(ck, result, 24 * 60 * 60 * 1000).catch(() => {});
+    return c.json({ ok: true, ...result });
+  });
+
+  // ── Fast Indexer metrics ──────────────────────────────────────────────────
+  app.get("/api/indexer/metrics", (c) => {
+    try {
+      const metrics = getIndexerMetrics();
+      return c.json({ ok: true, ...metrics });
+    } catch {
+      return c.json({ ok: false, error: "Indexer not running" });
+    }
+  });
+
+  // ── Batch URL submission to fast indexer ──────────────────────────────────
+  app.post("/api/indexer/submit", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const urls = Array.isArray(body.urls) ? body.urls : [];
+    const priority = Number(body.priority) || 5;
+    const n = submitUrls(urls, priority);
+    return c.json({ ok: true, submitted: n });
+  });
+
+  // ── Features API ──────────────────────────────────────────────────────────
+  app.get("/api/features", async (c) => {
+    const url = (c.req.query("url") || "").trim();
+    const text = (c.req.query("text") || "").trim();
+    if (!url && !text) return c.json({ ok: false, error: "Missing url or text" }, 400);
+    const result = {};
+    if (url) {
+      result.ssl = checkSSL(url);
+      try {
+        const host = new URL(url).hostname.replace(/^www\./, "");
+        result.domainReputation = getDomainReputation(host);
+      } catch { /* ignore */ }
+    }
+    if (text) {
+      result.readingTime = getReadingTime(text);
+      result.topics = detectTopics(text);
+      result.sentiment = analyzeSentiment(text);
+      result.language = detectLanguage(text);
+    }
+    return c.json({ ok: true, ...result });
+  });
+
+  // ── Trending searches v2 ──────────────────────────────────────────────────
+  app.get("/api/trending/v2", (c) => {
+    return c.json({
+      ok: true,
+      trending: getTrendingSearches(),
+      note: "Curated popular topics. Atomic never logs queries.",
+      generatedAt: new Date().toISOString(),
+    });
+  });
+
+  // ── Boolean search parser ─────────────────────────────────────────────────
+  app.get("/api/parse-query", (c) => {
+    const q = (c.req.query("q") || "").trim();
+    if (!q) return c.json({ ok: false, error: "Missing query" }, 400);
+    const parsed = parseBooleanQuery(q);
+    const expanded = expandQueryLocally(q);
+    return c.json({ ok: true, query: q, parsed, expanded });
+  });
+
+  // ── Features list ─────────────────────────────────────────────────────────
+  app.get("/api/features/list", (c) => {
+    return c.json({ ok: true, features: listFeatures(), count: listFeatures().length });
+  });
 
   // AI feature removed — the synthesized-answer experience was unreliable
   // at this scale and the user asked to drop it entirely. If we ever want
