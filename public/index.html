@@ -165,6 +165,10 @@
         <div id="search-hint" class="search-hint" aria-live="polite"></div>
 
         <div class="topbar-right">
+          <span id="safe-search-indicator" class="safe-search-chip" aria-label="Safe Search is ON" title="Safe Search is ON — adult content is filtered">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Safe
+          </span>
           <button id="open-settings" class="icon-btn" title="Settings" aria-label="Settings">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="12" cy="12" r="3"></circle>
@@ -428,6 +432,13 @@
           </div>
 
           <h3>Search</h3>
+          <div class="setting-row">
+            <div>
+              <div class="label">Safe Search</div>
+              <div class="hint">Filter adult content from all search results and images.</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="setting-safesearch" checked><span class="slider"></span></label>
+          </div>
           <div class="setting-row">
             <div>
               <div class="label">Safety badges</div>

@@ -213,13 +213,16 @@ async function buildOwnResults(q) {
       // same shape as meta-fused results. Values are normalised 0..1 the
       // same way ranking.js produces them.
       subScores: {
-        bm25: titleHit ? 0.9 : 0.3,
-        titleMatch: titleHit ? 1.0 : 0.2,
+        // Derive real sub-scores from the same signals scoreOwnIndexRow uses
+        // so the "Why this result?" panel shows meaningful values.
+        bm25: Math.min(1, score / 20),
+        titleMatch: titleHit ? Math.min(1, score / 15) : Math.min(0.4, score / 20),
         agreement: 0,
-        authority: 0,
+        authority: AUTH_TIER1.test((p.host || "").toLowerCase()) ? 1.0
+          : AUTH_TIER2.test((p.host || "").toLowerCase()) ? 0.5 : 0,
         rrf: 0,
         structure: 0,
-        proximity: titleHit ? 0.5 : 0, // v5: shape parity with aggregator
+        proximity: titleHit ? Math.min(1, score / 12) : 0,
       },
       signals: {
         agreement: 1,
@@ -716,9 +719,8 @@ export function buildApp() {
       } catch { return false; }
     };
     if (!q) return c.json({ query: "", results: [], page: 1, hasMore: false });
-    // NSFW-intent queries get zero results. This is deliberate and not a
-    // soft "safe search toggle" — the engine refuses to serve adult content
-    // in any mode.
+    // NSFW-intent queries always get zero results — this is a hard block,
+    // not a soft toggle. Adult content is never served by Atomic Search.
     if (isNsfwText(q)) {
       return c.json({
         query: q,
@@ -729,9 +731,14 @@ export function buildApp() {
         message: "Adult content is not served by Atomic Search.",
       });
     }
+    // Safe search: the client sends `safe=0` to opt out. When safe search is
+    // on (the default), NSFW results are filtered from the result set even if
+    // the query itself is clean (e.g. a general query that happens to return
+    // an adult-content page). The hard NSFW-query block above is always on.
+    const safeSearch = c.req.query("safe") !== "0";
     const page = Math.max(1, Math.min(20, Number(c.req.query("page")) || 1));
     const perPage = Math.max(10, Math.min(200, Number(c.req.query("per_page")) || 30));
-    const key = `search:${q.toLowerCase()}:p${page}:n${perPage}`;
+    const key = `search:${q.toLowerCase()}:p${page}:n${perPage}:safe${safeSearch ? 1 : 0}`;
 
     // Helper: pulls the strong / tail Atomic-hit buckets out of the current
     // index state. Runs multiple times per request (before meta, after eager
@@ -773,7 +780,9 @@ export function buildApp() {
         rest.push(r);
       }
       ownTopFresh.sort((a, b) => (b.score || 0) - (a.score || 0));
-      const filteredFresh = [...ownTopFresh, ...rest].filter((r) => matchesSite(r.url));
+      const filteredFresh = [...ownTopFresh, ...rest]
+        .filter((r) => !safeSearch || !isNsfwResult(r))
+        .filter((r) => matchesSite(r.url));
       const diversifiedFresh = diversifyByHost(filteredFresh, { topWindow: 20, perHost: 2 });
       const mergedFresh = diversifiedFresh.slice(0, perPage);
       const ownIndexCount = mergedFresh.filter((r) => r.ownIndex).length;
@@ -781,7 +790,7 @@ export function buildApp() {
       const didYouMeanFresh = mergedFresh.length === 0 ? null : buildDidYouMean(q, mergedFresh);
       // Fire-and-forget: keep growing the index on repeat searches too.
       growIndex(mergedFresh).catch(() => {});
-      return c.json({ ...cached, query: q, results: mergedFresh, ownIndexCount, related: relatedFresh, didYouMean: didYouMeanFresh, siteFilter, cached: true });
+      return c.json({ ...cached, query: q, results: mergedFresh, ownIndexCount, related: relatedFresh, didYouMean: didYouMeanFresh, siteFilter, safeSearch, cached: true });
     }
 
     // Cold path: first time we've seen this query (in this cache window).
@@ -857,7 +866,7 @@ export function buildApp() {
     }
 
     const ordered = [...ownTop, ...wikiHead, ...metaRest, ...wikiRest, ...ownTail]
-      .filter((r) => !isNsfwResult(r))
+      .filter((r) => !safeSearch || !isNsfwResult(r))
       .filter((r) => matchesSite(r.url));
 
     // Google-like domain diversity: in the top 20 positions, cap any single
@@ -889,8 +898,11 @@ export function buildApp() {
     let hotelResults = [];
     if (page === 1 && isHotelQuery(q)) {
       try {
-        const hotelData = await searchHotels(q, {});
-        hotelResults = formatHotelResults(hotelData);
+        const checkIn = (c.req.query("checkin") || "").trim() || undefined;
+        const checkOut = (c.req.query("checkout") || "").trim() || undefined;
+        const hotelData = await searchHotels(q, { checkIn, checkOut });
+        const formatted = formatHotelResults(hotelData);
+        if (formatted) hotelResults = [formatted];
       } catch { /* ignore — hotel scraper is best-effort */ }
     }
 
@@ -923,10 +935,10 @@ export function buildApp() {
       } catch { /* ignore */ }
     }
 
-    // Merge hotel results into the result set (after the top organic results).
-    const mergedWithHotels = hotelResults.length > 0
-      ? [...merged.slice(0, 5), ...hotelResults.slice(0, 3), ...merged.slice(5)]
-      : merged;
+    // Hotel results are pre-formatted HTML objects, not regular result rows.
+    // They're passed through the response as a separate field so the frontend
+    // can render them in a dedicated hotel card above the organic results.
+    const mergedWithHotels = merged;
 
     const out = {
       ...meta,
@@ -938,7 +950,8 @@ export function buildApp() {
       siteFilter,
       instant: aiSynthesis || instantOverride,
       aiAvailable: isOpenRouterAvailable(),
-      hotelResults: hotelResults.length > 0 ? hotelResults.length : undefined,
+      hotelCard: hotelResults.length > 0 ? hotelResults[0] : undefined,
+      safeSearch,
     };
     await cacheSet(key, out, SEARCH_TTL);
     // The eager slice already awaited top-5; fire-and-forget the rest so the
@@ -1033,8 +1046,8 @@ export function buildApp() {
     const cacheKey = `hotels:${q}:${location}:${checkIn}:${checkOut}`.toLowerCase();
     const cached = await cacheGet(cacheKey);
     if (cached) return c.json({ ...cached, cached: true });
-    const data = await searchHotels(q, { location, checkIn, checkOut });
-    if (data.results.length > 0) {
+    const data = await searchHotels(q + (location ? " " + location : ""), { checkIn, checkOut });
+    if ((data.results || []).length > 0) {
       await cacheSet(cacheKey, data, 2 * 60 * 60 * 1000);
     }
     return c.json(data);
