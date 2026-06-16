@@ -1004,6 +1004,104 @@ export function buildApp() {
     return c.json({ ok: true, expansions });
   });
 
+  // AI health check — lets the frontend know whether AI features are available.
+  app.get("/api/ai/health", (c) => {
+    return c.json({ available: isOpenRouterAvailable() });
+  });
+
+  // AI content summarisation — fetches a URL server-side and returns an
+  // AI-generated summary. Useful for the "summarise this page" feature.
+  // Rate-limited to 1 request per URL per 30 minutes via the shared cache.
+  app.post("/api/ai/summarize-content", async (c) => {
+    if (!isOpenRouterAvailable()) {
+      return c.json({ ok: false, error: "AI not configured. Set OPENROUTER_API_KEY." }, 503);
+    }
+    if (!rateLimitTake(c, 3)) {
+      return c.json({ ok: false, error: "rate_limited" }, 429, { "Retry-After": "30" });
+    }
+    const body = await c.req.json().catch(() => ({}));
+    const url = (body.url || "").trim().slice(0, 2000);
+    if (!url || !isSafeUrl(url)) {
+      return c.json({ ok: false, error: "Invalid or unsafe URL" }, 400);
+    }
+    const cacheKey = `ai:summarize-content:${url}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return c.json({ ok: true, summary: cached, cached: true });
+    // Fetch the page content server-side (no cookies, no referrer)
+    let pageText = "";
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "AtomicSearch/3.1 (+https://github.com/kay816577-hue/Atomic-Search-)" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) return c.json({ ok: false, error: "Failed to fetch URL" }, 502);
+      const html = await res.text();
+      // Strip tags and collapse whitespace for a clean text input
+      pageText = html
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 6000);
+    } catch (err) {
+      return c.json({ ok: false, error: "Could not fetch page content" }, 502);
+    }
+    if (!pageText || pageText.length < 100) {
+      return c.json({ ok: false, error: "Page content too short to summarise" }, 422);
+    }
+    const { summarizeText } = await import("./openrouter-ai.js").catch(() => ({}));
+    if (!summarizeText) return c.json({ ok: false, error: "AI module unavailable" }, 503);
+    const summary = await summarizeText(pageText, { maxLength: 400 });
+    if (!summary) return c.json({ ok: false, error: "AI summarisation failed" }, 500);
+    await cacheSet(cacheKey, summary, 30 * 60 * 1000);
+    return c.json({ ok: true, summary });
+  });
+
+  // AI search suggestions — returns AI-generated query suggestions for a
+  // partial query. Complements the own-index auto-suggest with AI creativity.
+  app.get("/api/ai/search-suggestions", async (c) => {
+    if (!isOpenRouterAvailable()) {
+      return c.json({ ok: false, suggestions: [] });
+    }
+    const q = (c.req.query("q") || "").trim().slice(0, 200);
+    if (!q || q.length < 2) return c.json({ ok: false, suggestions: [] });
+    const cacheKey = `ai:suggestions:${q.toLowerCase()}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return c.json({ ok: true, suggestions: cached, cached: true });
+    const suggestions = await expandQuery(q);
+    const list = Array.isArray(suggestions) ? suggestions.slice(0, 8) : [];
+    if (list.length) await cacheSet(cacheKey, list, 15 * 60 * 1000);
+    return c.json({ ok: true, suggestions: list });
+  });
+
+  // AI instant answers — returns a concise AI-generated answer for a query.
+  // Only fires when the query looks like a question or definition request.
+  // Cached for 30 minutes to avoid hammering the AI API.
+  app.get("/api/ai/instant-answers", async (c) => {
+    if (!isOpenRouterAvailable()) {
+      return c.json({ ok: false, answer: null });
+    }
+    if (!rateLimitTake(c, 2)) {
+      return c.json({ ok: false, error: "rate_limited" }, 429, { "Retry-After": "30" });
+    }
+    const q = (c.req.query("q") || "").trim().slice(0, 300);
+    if (!q) return c.json({ ok: false, answer: null });
+    // Only answer question-like queries to avoid wasting tokens
+    const isQuestion = /\b(what|who|when|where|why|how|define|explain|is|are|does|did|can|will)\b/i.test(q);
+    if (!isQuestion) return c.json({ ok: false, answer: null, reason: "not_a_question" });
+    const cacheKey = `ai:instant:${q.toLowerCase()}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return c.json({ ok: true, answer: cached, cached: true });
+    const { aiChat } = await import("./openrouter-ai.js").catch(() => ({}));
+    if (!aiChat) return c.json({ ok: false, answer: null });
+    const prompt = `Answer this search query in 1-2 sentences, factually and concisely: "${q}"`;
+    const answer = await aiChat([{ role: "user", content: prompt }], { maxTokens: 128 }).catch(() => null);
+    if (!answer) return c.json({ ok: false, answer: null });
+    await cacheSet(cacheKey, answer, 30 * 60 * 1000);
+    return c.json({ ok: true, answer });
+  });
+
   // ScamAdviser domain safety check — returns trust score and warnings.
   app.get("/api/scamadviser", async (c) => {
     const domain = (c.req.query("domain") || c.req.query("url") || "").trim();
