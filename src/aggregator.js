@@ -16,6 +16,8 @@ import {
   agreementScore,
   rrfNormalised,
   proximityScore,
+  freshnessScore,
+  domainReputationScore,
   parkedDemote,
   combineScore,
   stripTitleBrand,
@@ -334,7 +336,11 @@ function rankBlend(lists, query = "") {
       rrf: rrfNormalised(rrfRaw.get(it.url) || 0, rrfMax),
       structure: structureScore(it.url, ctx),
       proximity: proximityScore(it, ctx),
+      freshness: 0, // freshness weight is 0.00 in WEIGHTS; kept for diagnostics
     };
+    // Domain reputation boost: .edu/.gov/.org get a small bonus applied
+    // outside the weighted sum so it doesn't displace other signals.
+    const domainBoost = domainReputationScore(it.host || (it.url ? (() => { try { return new URL(it.url).hostname; } catch { return ""; } })() : ""));
     // Exact-host-root boost: if a query token equals the registrable
     // domain root (e.g. query has "kernel" and url is `kernel.org`), the
     // site is almost certainly THE canonical source for the topic.
@@ -348,9 +354,9 @@ function rankBlend(lists, query = "") {
       }
     } catch { /* ignore */ }
 
-    // v5: parked-host demotion subtracts up to 0.35 from the final score.
+    // v5: parked-host demotion subtracts up to 0.40 from the final score.
     const demote = parkedDemote(it.host);
-    const score = Math.max(0, combineScore(subScores) - demote);
+    const score = Math.max(0, combineScore(subScores) + domainBoost * 0.05 - demote);
     // Tiny URL-depth tiebreaker (no weight changes): shorter paths win
     // when everything else is equal. Bounded at +0.02.
     let depthBonus = 0;

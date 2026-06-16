@@ -9,8 +9,10 @@
     <title>Atomic Search — private, anonymous search</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/css/themes.css" />
+    <link rel="stylesheet" href="/css/themes-v5.css" />
     <link rel="stylesheet" href="/css/styles.css" />
     <link rel="stylesheet" href="/css/v3.css" />
+    <link rel="stylesheet" href="/css/v5-redesign.css" />
   </head>
   <body>
     <!-- Home view -->
@@ -106,8 +108,9 @@
         <footer class="home-footer">
           <a href="#" data-page="about">About</a>
           <a href="#" data-page="self-hosting">Self-hosting</a>
-          <a href="#" data-page="api">API</a>
+          <a href="/api/docs">API</a>
           <a href="/tools">Tools</a>
+          <a href="/settings">Settings</a>
           <a href="#" data-page="terms">Terms</a>
           <a href="#" data-page="privacy">Privacy</a>
           <a href="https://github.com/kay816577-hue/Atomic-Search-" target="_blank" rel="noopener">GitHub</a>
@@ -194,6 +197,47 @@
           <span class="index-chip-dot"></span>
           <span id="index-chip-text">Our own index</span>
         </aside>
+
+        <!-- AI Summary section — shown above results when AI is available -->
+        <section id="ai-summary-section" hidden aria-label="AI Summary" aria-live="polite">
+          <div class="ai-summary-box">
+            <div class="ai-summary-header">
+              <svg class="ai-summary-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+              <span class="ai-summary-label">AI Summary</span>
+            </div>
+            <div id="ai-summary-loading" class="ai-summary-loading" hidden>
+              <span>AI is reading results</span>
+              <span class="loading-dots" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </span>
+            </div>
+            <p id="ai-summary-text" class="ai-summary-text"></p>
+          </div>
+        </section>
+
+        <!-- Loading skeleton — shown while search is in progress -->
+        <section id="results-skeleton" hidden aria-hidden="true">
+          <div class="skeleton-result">
+            <div class="skeleton sk-host"></div>
+            <div class="skeleton sk-title"></div>
+            <div class="skeleton sk-snippet"></div>
+            <div class="skeleton sk-snippet-2"></div>
+          </div>
+          <div class="skeleton-result">
+            <div class="skeleton sk-host"></div>
+            <div class="skeleton sk-title"></div>
+            <div class="skeleton sk-snippet"></div>
+            <div class="skeleton sk-snippet-2"></div>
+          </div>
+          <div class="skeleton-result">
+            <div class="skeleton sk-host"></div>
+            <div class="skeleton sk-title"></div>
+            <div class="skeleton sk-snippet"></div>
+          </div>
+        </section>
 
         <section id="results" class="results" role="region" aria-label="Search results"></section>
         <nav id="pager" class="pager" hidden></nav>

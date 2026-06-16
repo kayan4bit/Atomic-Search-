@@ -35,6 +35,8 @@ import {
   enhanceSynthesis,
   expandQuery,
 } from "./openrouter.js";
+// AI summary module — generates concise summaries of top results.
+import { isAISummaryAvailable, generateAISummary } from "./ai-summary.js";
 // Optional scrapers — only activated for relevant query types.
 import { checkDomain } from "./scrapers/scamadviser.js";
 import { isHotelQuery, searchHotels, formatHotelResults } from "./scrapers/trivago.js";
@@ -599,6 +601,32 @@ export function buildApp() {
   // rate-bucket keys (hashed IPs) and the query cache key prefixes.
   // In practice this is a stub that returns a static list of popular
   // search categories — no user data is ever stored or returned.
+  // API documentation endpoint — returns a JSON description of all public endpoints.
+  app.get("/api/docs", (c) => {
+    return c.json({
+      name: "Atomic Search API",
+      version: "3.1.0",
+      description: "Privacy-first search engine API. No API key required. Rate limited to 120 req/min.",
+      baseUrl: new URL(c.req.url).origin,
+      endpoints: [
+        { method: "GET", path: "/api/search", description: "Search the web", params: { q: "query string", page: "page number (1-20)", per_page: "results per page (10-200)", safe: "0 to disable safe search" } },
+        { method: "GET", path: "/api/images", description: "Image search", params: { q: "query string" } },
+        { method: "GET", path: "/api/stats", description: "Index statistics" },
+        { method: "GET", path: "/api/health", description: "Health check" },
+        { method: "GET", path: "/api/trending", description: "Trending topics (anonymised)" },
+        { method: "GET", path: "/api/index/stats", description: "Detailed index metrics" },
+        { method: "POST", path: "/api/submit", description: "Submit a URL for indexing", body: { url: "URL to index" } },
+        { method: "POST", path: "/api/safety/batch", description: "Batch safety check", body: { urls: ["array of URLs"] } },
+        { method: "GET", path: "/api/safety", description: "Safety check for a URL", params: { url: "URL to check" } },
+        { method: "GET", path: "/api/v1/search", description: "Public v1 search API (CORS-open)" },
+        { method: "GET", path: "/api/v1/images", description: "Public v1 image search API" },
+        { method: "GET", path: "/api/v1/stats", description: "Public v1 stats API" },
+        { method: "POST", path: "/api/ai/synthesise", description: "AI synthesis (requires OPENROUTER_API_KEY)", body: { query: "search query", results: "array of result objects" } },
+      ],
+      attribution: "Powered by Atomic Search — https://github.com/kay816577-hue/Atomic-Search-",
+    });
+  });
+
   app.get("/api/trending", (c) => {
     // Static trending topics — no query logging, ever.
     const trending = [
@@ -922,6 +950,19 @@ export function buildApp() {
       } catch { /* ignore */ }
     }
 
+    // AI summary: generate a concise summary of the top results using OpenRouter.
+    // Non-blocking — fires after results are ready, cached for 1 hour per query.
+    // Privacy: only titles and snippets are sent, never full URLs.
+    let aiSummaryText = null;
+    if (page === 1 && isAISummaryAvailable() && merged.length >= 2) {
+      try {
+        aiSummaryText = await Promise.race([
+          generateAISummary(q, merged.slice(0, 3)),
+          new Promise((r) => setTimeout(() => r(null), 5000)),
+        ]);
+      } catch { /* ignore — AI summary is best-effort */ }
+    }
+
     // AI "Did you mean" fallback: if the heuristic found nothing and
     // OpenRouter is available, ask the AI.
     let finalDidYouMean = didYouMean;
@@ -950,6 +991,7 @@ export function buildApp() {
       siteFilter,
       instant: aiSynthesis || instantOverride,
       aiAvailable: isOpenRouterAvailable(),
+      aiSummary: aiSummaryText || null,
       hotelCard: hotelResults.length > 0 ? hotelResults[0] : undefined,
       safeSearch,
     };

@@ -16,13 +16,14 @@
 // independently unit-testable (see ranking.test.js).
 
 export const WEIGHTS = Object.freeze({
-  bm25: 0.32,
+  bm25: 0.40,        // increased from 0.32 — BM25 is the strongest relevance signal
   titleMatch: 0.25,
   agreement: 0.08,
-  authority: 0.15,
-  rrf: 0.05,
+  authority: 0.13,   // slightly reduced to make room for freshness
+  rrf: 0.02,         // decreased from 0.05 — meta-search agreement is noisy
   structure: 0.07,
-  proximity: 0.08, // v5: phrase-proximity bonus in snippet
+  proximity: 0.05,   // reduced slightly
+  freshness: 0.00,   // freshness is applied as a bonus outside combineScore
 });
 
 // v5 "parked / ad-heavy" host demotion. Appearing here reduces the final
@@ -38,7 +39,7 @@ const PARKED_HOSTS = new Set([
   // the full domain matches; per-subdomain exceptions are handled via the
   // allow-list in aggregator.js rather than by listing every subdomain.
 ]);
-const PARKED_PENALTY = 0.35;
+const PARKED_PENALTY = 0.40; // increased from 0.35 — more aggressive demotion
 
 export function parkedDemote(host) {
   if (!host) return 0;
@@ -198,9 +199,9 @@ export function titleMatchScore(item, ctx) {
   const phrase = ctx.phrase;
 
   // Exact match (after brand strip) is the strongest signal.
-  if (title === phrase) return 1;
-  if (title.startsWith(phrase + " ") || title.startsWith(phrase + ":")) return 0.85;
-  if (title.endsWith(" " + phrase)) return 0.7;
+  if (title === phrase) return 1.0;
+  if (title.startsWith(phrase + " ") || title.startsWith(phrase + ":")) return 0.92;
+  if (title.endsWith(" " + phrase)) return 0.80;
 
   // Phrase contained anywhere in title.
   if (phrase.length >= 3 && title.includes(phrase)) {

@@ -31,6 +31,9 @@ async function main() {
   // doesn't send index.html.
   app.get("/tools", serveStatic({ path: "./public/tools.html" }));
 
+  // Pretty URL for /settings — delivers the full settings page.
+  app.get("/settings", serveStatic({ path: "./public/html/settings-v5.html" }));
+
   // Static frontend. `serveStatic` handles everything under ./public;
   // anything else falls through to index.html so client-side routing keeps
   // working.
@@ -44,7 +47,8 @@ async function main() {
 
   // Crawler runs after the restore completes, so the first page it writes
   // lands alongside the restored snapshot instead of on top of an empty DB.
-  startCrawler(5000);
+  // 2-second tick (down from 5s) for faster continuous indexing even with 0 users.
+  startCrawler(2000);
 
   // Optional meta search scraper — feeds external result URLs into the
   // crawler queue. Only active when ENABLE_METASEARCH=1 is set.
