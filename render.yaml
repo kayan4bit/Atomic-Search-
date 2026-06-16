@@ -68,3 +68,11 @@ services:
         sync: false
       - key: OPENAI_MODEL
         sync: false
+
+      # --- Optional: OpenRouter AI for summaries and synthesis.
+      # Get a free key at https://openrouter.ai — free tier includes
+      # mistral-7b-instruct. Set OPENROUTER_MODEL to override the default.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: "mistralai/mistral-7b-instruct:free"

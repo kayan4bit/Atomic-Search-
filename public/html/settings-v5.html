@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Settings — Atomic Search</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/css/themes.css" />
+  <link rel="stylesheet" href="/css/themes-v5.css" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/v3.css" />
+  <link rel="stylesheet" href="/css/v5-redesign.css" />
+  <style>
+    body { max-width: 760px; margin: 0 auto; padding: 24px 20px 64px; }
+    .settings-header { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+    .settings-header a { color: var(--accent); font-size: 14px; }
+    .settings-header h1 { font-size: 22px; font-weight: 700; margin: 0; }
+    .settings-section { margin-bottom: 32px; }
+    .settings-section h2 {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--text-mute); margin: 0 0 12px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border-soft);
+    }
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border-soft);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-size: 14px; font-weight: 500; color: var(--text); }
+    .setting-hint { font-size: 12px; color: var(--text-mute); margin-top: 2px; }
+    .setting-control { flex-shrink: 0; }
+    select {
+      padding: 7px 12px; background: var(--bg-elev); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 13px; cursor: pointer;
+      outline: none; transition: border-color 0.12s;
+    }
+    select:focus { border-color: var(--accent); }
+    .toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--border); border-radius: 24px; transition: 0.2s;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 18px; width: 18px;
+      left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s;
+    }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider:before { transform: translateX(20px); }
+    .theme-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px;
+    }
+    .theme-swatch {
+      padding: 10px 12px; border-radius: 10px; border: 2px solid transparent;
+      cursor: pointer; font-size: 12px; font-weight: 500; transition: border-color 0.12s;
+      text-align: center;
+    }
+    .theme-swatch.active { border-color: var(--accent); }
+    .theme-swatch:hover { border-color: var(--text-mute); }
+    .btn {
+      padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border); background: var(--bg-elev);
+      color: var(--text); transition: border-color 0.12s, color 0.12s;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { border-color: var(--danger); color: var(--danger); }
+    .btn-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-elev)); }
+    .btn-primary { background: var(--accent); color: #fff; border-color: transparent; }
+    .btn-primary:hover { opacity: 0.88; }
+    .shortcuts-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .shortcuts-table td { padding: 6px 8px; border-bottom: 1px solid var(--border-soft); }
+    .shortcuts-table td:first-child { color: var(--text-mute); }
+    kbd {
+      display: inline-block; padding: 2px 6px; background: var(--bg-elev-1);
+      border: 1px solid var(--border); border-radius: 4px; font-size: 11px;
+      font-family: monospace; color: var(--text);
+    }
+    .status-msg { font-size: 13px; color: var(--ok); margin-top: 8px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="settings-header">
+    <a href="/" aria-label="Back to search">← Back</a>
+    <h1>Settings</h1>
+  </div>
+
+  <!-- Appearance -->
+  <section class="settings-section">
+    <h2>Appearance</h2>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Theme</div>
+        <div class="setting-hint">Choose a visual theme. Stored locally only.</div>
+      </div>
+      <div class="setting-control">
+        <select id="theme-select"></select>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI -->
+  <section class="settings-section">
+    <h2>AI Features</h2>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">AI Summaries</div>
+        <div class="setting-hint">Show AI-generated summaries above results (requires OPENROUTER_API_KEY on server).</div>
+      </div>
+      <div class="setting-control">
+        <label class="toggle"><input type="checkbox" id="ai-summaries"><span class="slider"></span></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- Search -->
+  <section class="settings-section">
+    <h2>Search</h2>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Safe Search</div>
+        <div class="setting-hint">Filter adult content from all results.</div>
+      </div>
+      <div class="setting-control">
+        <label class="toggle"><input type="checkbox" id="safe-search"><span class="slider"></span></label>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Safety Badges</div>
+        <div class="setting-hint">Show a coloured dot on each result reflecting its safety score.</div>
+      </div>
+      <div class="setting-control">
+        <label class="toggle"><input type="checkbox" id="safety-badges"><span class="slider"></span></label>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Anonymous View Links</div>
+        <div class="setting-hint">Open results through Atomic's proxy instead of going direct.</div>
+      </div>
+      <div class="setting-control">
+        <label class="toggle"><input type="checkbox" id="proxy-links"><span class="slider"></span></label>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Results Per Page</div>
+        <div class="setting-hint">How many results to show per page (10–100).</div>
+      </div>
+      <div class="setting-control">
+        <select id="per-page">
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- Privacy -->
+  <section class="settings-section">
+    <h2>Privacy</h2>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Search History</div>
+        <div class="setting-hint">Stored locally in your browser only. Never sent to any server.</div>
+      </div>
+      <div class="setting-control">
+        <button class="btn btn-danger" id="clear-history">Clear History</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Export Search History</div>
+        <div class="setting-hint">Download your local search history as JSON.</div>
+      </div>
+      <div class="setting-control">
+        <button class="btn" id="export-history">Export JSON</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Clear All Data</div>
+        <div class="setting-hint">Wipe all locally stored settings, history, and preferences.</div>
+      </div>
+      <div class="setting-control">
+        <button class="btn btn-danger" id="clear-all">Clear All</button>
+      </div>
+    </div>
+    <p class="setting-hint" style="margin-top:12px">
+      Atomic Search never logs your queries, IP address, or clicks. All data shown here is stored only in your browser.
+    </p>
+  </section>
+
+  <!-- Index -->
+  <section class="settings-section">
+    <h2>Grow Our Index</h2>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Submit a URL</div>
+        <div class="setting-hint">We'll crawl it anonymously and add it to the Atomic index.</div>
+      </div>
+    </div>
+    <form id="submit-form" style="display:flex;gap:8px;margin-top:4px">
+      <input id="submit-url" type="url" placeholder="https://example.com" required
+        style="flex:1;padding:9px 14px;background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none" />
+      <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    <p id="submit-status" class="status-msg"></p>
+  </section>
+
+  <!-- Keyboard Shortcuts -->
+  <section class="settings-section">
+    <h2>Keyboard Shortcuts</h2>
+    <table class="shortcuts-table">
+      <tr><td><kbd>/</kbd></td><td>Focus search box</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Close modal / clear focus</td></tr>
+      <tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Open command palette</td></tr>
+      <tr><td><kbd>j</kbd> / <kbd>k</kbd></td><td>Navigate results (when not in input)</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>Open focused result</td></tr>
+      <tr><td><kbd>?</kbd></td><td>Show this shortcuts reference</td></tr>
+    </table>
+  </section>
+
+  <!-- About -->
+  <section class="settings-section">
+    <h2>About</h2>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Atomic Search</div>
+        <div class="setting-hint">A UCX Industry project by Kayan Erkama. Open source, privacy-first search engine with its own growing index.</div>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Version</div>
+        <div class="setting-hint">v3.1.0 — "3rd Anniversary"</div>
+      </div>
+      <div class="setting-control">
+        <a href="https://github.com/kay816577-hue/Atomic-Search-" target="_blank" rel="noopener" class="btn">GitHub ↗</a>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/themes.js"></script>
+  <script src="/js/settings-v5.js"></script>
+</body>
+</html>

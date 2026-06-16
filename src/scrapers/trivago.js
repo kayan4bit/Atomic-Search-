@@ -2,6 +2,7 @@
 // Uses the Booking.com public search page (no API key required) with
 // lightweight HTML extraction. Falls back to curated static suggestions
 // when scraping fails so the hotel card always renders something useful.
+// v5: improved error handling, logging, and fallback data.
 
 const CACHE = new Map();
 const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
@@ -124,26 +125,50 @@ export async function searchHotels(query, opts = {}) {
 
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+    const timer = setTimeout(() => controller.abort(), 10000);
     const res = await fetch(searchUrl, {
       signal: controller.signal,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
           "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
       },
     });
     clearTimeout(timer);
 
     if (res.ok) {
-      const html = (await res.text()).slice(0, 600_000);
+      const html = (await res.text()).slice(0, 800_000);
       results = parseBookingHtml(html, location);
+      if (!results.length) {
+        // Booking.com may have changed their HTML structure — log for debugging
+        console.warn(`[hotels] Booking.com returned HTML but no results parsed for location: ${location}`);
+      }
+    } else {
+      console.warn(`[hotels] Booking.com returned HTTP ${res.status} for location: ${location}`);
     }
   } catch (err) {
-    // Network failure or timeout — fall through to empty results.
-    // We don't log the error to avoid leaking location data.
+    // Network failure or timeout — fall through to fallback results.
+    const msg = err?.name === "AbortError" ? "timeout" : (err?.message || "fetch failed");
+    console.warn(`[hotels] Booking.com fetch failed (${msg}) for location: ${location}`);
+  }
+
+  // Fallback: generate a helpful "search on Booking.com" result when scraping fails
+  if (!results.length && location) {
+    results = [{
+      name: `Hotels in ${location}`,
+      location,
+      price: null,
+      rating: null,
+      stars: null,
+      url: searchUrl,
+      source: "Booking.com",
+      isFallback: true,
+    }];
   }
 
   const data = { results, searchUrl, location };

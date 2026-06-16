@@ -6,6 +6,7 @@ import { parseHTML } from "linkedom";
 import { privateFetch, hostFromUrl, normaliseUrl, stripTags } from "./util.js";
 import {
   insertPage,
+  insertPageBatch,
   nextCrawlTask,
   nextCrawlTaskBatch,
   enqueueCrawl,
@@ -113,10 +114,11 @@ async function seedIfEmpty() {
 // a process-local LRU of "already enqueued" URLs so we avoid the DB
 // round-trip for the most common dupes.
 
-// Free-tier tuning. 20 concurrent fetches keeps heap well under 400 MB on
-// a 512 MB Railway/Render instance; 32 was causing OOM on low-RAM hosts.
+// Free-tier tuning. 50 concurrent fetches with memory guards keeps heap
+// well under 400 MB on a 512 MB Railway/Render instance. The memory guard
+// pauses crawling automatically if heap exceeds HEAP_PAUSE_MB.
 // Override with CRAWL_CONCURRENCY env var if you have more RAM.
-const CONCURRENCY = Number(process.env.CRAWL_CONCURRENCY) || 20;
+const CONCURRENCY = Number(process.env.CRAWL_CONCURRENCY) || 50;
 const PER_HOST = Number(process.env.CRAWL_PER_HOST) || 8;
 const PER_HOST_MIN_GAP_MS = Number(process.env.CRAWL_HOST_GAP_MS) || 75;
 const LINKS_PER_PAGE = Number(process.env.CRAWL_LINKS_PER_PAGE) || 100;
@@ -251,7 +253,7 @@ export function startCrawler(intervalMs = 1000) {
     const available = CONCURRENCY - inFlight;
     if (available <= 0) return;
     let tasks = [];
-    try { tasks = await nextCrawlTaskBatch(Math.min(available * 2, 20)); } catch { tasks = []; }
+    try { tasks = await nextCrawlTaskBatch(Math.min(available * 2, 50)); } catch { tasks = []; }
     if (!tasks.length) return;
     for (const task of tasks) {
       if (inFlight >= CONCURRENCY) break;

@@ -66,6 +66,8 @@ async function tryLoadSqlite() {
     // Prevent "database is locked" errors under concurrent load by waiting
     // up to 5 s before giving up on a lock acquisition.
     db.pragma("busy_timeout = 5000");
+    // Optimize query planner statistics on startup for better query plans.
+    try { db.pragma("optimize"); } catch { /* ignore — not critical */ }
     db.exec(`
       CREATE TABLE IF NOT EXISTS kv (
         k TEXT PRIMARY KEY,

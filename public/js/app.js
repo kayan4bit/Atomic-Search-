@@ -374,16 +374,22 @@
   async function doSearch(q) {
     pushHistory(q);
     state.q = q;
-    $("search-meta").hidden = false;
-    $("search-meta").innerHTML = '<span><span class="loading"></span>Searching our index…</span>';
-    $("empty").hidden = true;
-    $("results").innerHTML = "";
-    $("pager").hidden = true;
+    $(\"search-meta\").hidden = false;
+    $(\"search-meta\").innerHTML = '<span><span class=\"loading\"></span>Searching our index…</span>';
+    $(\"empty\").hidden = true;
+    $(\"results\").innerHTML = \"\";
+    $(\"pager\").hidden = true;
+    // Show loading skeleton while fetching
+    var skeletonEl = $(\"results-skeleton\");
+    if (skeletonEl) skeletonEl.hidden = false;
+    // Hide AI summary while loading
+    var aiSummarySection = $(\"ai-summary-section\");
+    if (aiSummarySection) aiSummarySection.hidden = true;
     var instant = instantAnswer(q);
-    if (instant) $("results").innerHTML = renderInstantCard(instant);
+    if (instant) $(\"results\").innerHTML = renderInstantCard(instant);
 
-    var safeParam = settings.safeSearch !== false ? "" : "&safe=0";
-    var u = "/api/search?q=" + encodeURIComponent(q) + "&page=" + state.page + "&per_page=" + settings.perPage + safeParam;
+    var safeParam = settings.safeSearch !== false ? \"\" : \"&safe=0\";
+    var u = \"/api/search?q=\" + encodeURIComponent(q) + \"&page=\" + state.page + \"&per_page=\" + settings.perPage + safeParam;
     var t0 = performance.now();
     var data;
     try {
@@ -395,62 +401,72 @@
       try {
         data = JSON.parse(body);
       } catch (parseErr) {
-        data = { error: "bad_response", message: "Server returned " + res.status };
+        data = { error: \"bad_response\", message: \"Server returned \" + res.status };
       }
     } catch (e) {
-      $("search-meta").innerHTML = '<span style="color:var(--danger)">Network error — check your connection and try again.</span>';
+      if (skeletonEl) skeletonEl.hidden = true;
+      $(\"search-meta\").innerHTML = '<span style=\"color:var(--danger)\">Network error — check your connection and try again.</span>';
       return;
     }
-    if (data && data.error === "rate_limited") {
-      $("search-meta").innerHTML = '<span style="color:var(--text-dim)">Slow down — rate limited. Try again in 30 seconds.</span>';
+    // Hide skeleton once data arrives
+    if (skeletonEl) skeletonEl.hidden = true;
+    if (data && data.error === \"rate_limited\") {
+      $(\"search-meta\").innerHTML = '<span style=\"color:var(--text-dim)\">Slow down — rate limited. Try again in 30 seconds.</span>';
       return;
     }
     if (data && data.error) {
-      $("search-meta").innerHTML = '<span style="color:var(--text-dim)">Search temporarily unavailable: ' + esc(data.message || data.error) + '. Try again.</span>';
+      $(\"search-meta\").innerHTML = '<span style=\"color:var(--text-dim)\">Search temporarily unavailable: ' + esc(data.message || data.error) + '. Try again.</span>';
       return;
     }
     var elapsed = ((performance.now() - t0) / 1000).toFixed(2);
     var results = (data && data.results) || [];
 
     if (!results.length) {
-      $("search-meta").hidden = true;
-      $("empty").hidden = false;
+      $(\"search-meta\").hidden = true;
+      $(\"empty\").hidden = false;
       return;
     }
 
     var ownCount = data.ownIndexCount || results.filter(function (r) { return r.ownIndex; }).length;
     var ownHtml = ownCount > 0
-      ? '<span class="own-idx-chip" title="Matches from our growing private index">'
-        + '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
-        + '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>'
+      ? '<span class=\"own-idx-chip\" title=\"Matches from our growing private index\">'
+        + '<svg viewBox=\"0 0 24 24\" width=\"12\" height=\"12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\">'
+        + '<circle cx=\"12\" cy=\"12\" r=\"9\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>'
         + ownCount + ' from our own index</span>'
       : '<span>0 from our own index</span>';
-    $("search-meta").hidden = false;
-    $("search-meta").innerHTML =
-      "<span>About " + (data.total || results.length) + " results (" + elapsed + "s)</span>" +
-      '<span class="dot"></span>' +
+    $(\"search-meta\").hidden = false;
+    $(\"search-meta\").innerHTML =
+      \"<span>About \" + (data.total || results.length) + \" results (\" + elapsed + \"s)</span>\" +
+      '<span class=\"dot\"></span>' +
       ownHtml +
-      '<span style="margin-left:auto;display:flex;gap:4px">' +
-      '<button class="export-btn" data-export="json" title="Export results as JSON">Export JSON</button>' +
-      '<button class="export-btn" data-export="csv" title="Export results as CSV">Export CSV</button>' +
+      '<span style=\"margin-left:auto;display:flex;gap:4px\">' +
+      '<button class=\"export-btn\" data-export=\"json\" title=\"Export results as JSON\">Export JSON</button>' +
+      '<button class=\"export-btn\" data-export=\"csv\" title=\"Export results as CSV\">Export CSV</button>' +
       '</span>';
 
-    var instantHtml = instant ? renderInstantCard(instant) : "";
-    var serverAnswerHtml = data.instant ? renderServerAnswerBox(data.instant) : "";
+    // Show AI summary if available
+    if (data.aiSummary && aiSummarySection) {
+      var aiTextEl = $(\"ai-summary-text\");
+      if (aiTextEl) aiTextEl.textContent = data.aiSummary;
+      aiSummarySection.hidden = false;
+    }
+
+    var instantHtml = instant ? renderInstantCard(instant) : \"\";
+    var serverAnswerHtml = data.instant ? renderServerAnswerBox(data.instant) : \"\";
     var dymHtml = renderDidYouMean(data.didYouMean);
-    var hotelHtml = data.hotelCard ? renderHotelCard(data.hotelCard) : "";
+    var hotelHtml = data.hotelCard ? renderHotelCard(data.hotelCard) : \"\";
     var highlightTerms = buildHighlightTerms(q);
     var html = instantHtml + serverAnswerHtml + dymHtml + hotelHtml + results.map(function (r, i) {
       return renderResult(r, i, highlightTerms);
-    }).join("");
+    }).join(\"\");
     html += renderRelated(data.related);
-    $("results").innerHTML = html;
+    $(\"results\").innerHTML = html;
     renderPager(data);
 
     // Lazy-fetch safety verdicts in batches of 10.
     if (settings.safety) lazyLoadSafety(results);
 
-    // Refresh the index counter \u2014 the eager crawler has usually added a few
+    // Refresh the index counter — the eager crawler has usually added a few
     // pages by the time the response comes back.
     refreshIndexChip();
     setTimeout(refreshIndexChip, 2500);
