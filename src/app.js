@@ -47,6 +47,7 @@ import {
   parseBooleanQuery, listFeatures, getFeature,
 } from "./features.js";
 import { updateIdf, buildRelatedSearches, expandQueryLocally, diversifyResults } from "./ranking-engine.js";
+import { getHealthStatus, getMetrics } from "./monitoring.js";
 
 const SEARCH_TTL = 60 * 60 * 1000; // 60 min — less re-fetching, still fresh enough
 const IMAGE_TTL = 30 * 60 * 1000;
@@ -1489,6 +1490,19 @@ ${verdict === "pending" ? `<script>
   app.all("/api/auth/*", (c) =>
     c.json({ ok: false, error: "Sign-in has been removed. Atomic is fully anonymous." }, 410)
   );
+
+  // ── Monitoring & health endpoints ─────────────────────────────────────────
+
+  // Detailed health check — includes indexer, DB, memory, and search stats.
+  app.get("/api/health/detailed", async (c) => {
+    const h = await getHealthStatus();
+    return c.json(h);
+  });
+
+  // Full metrics dump — aggregate only, no PII.
+  app.get("/api/metrics", async (c) => {
+    return c.json(getMetrics());
+  });
 
   // Safety scanner — public, no login required. The Scan tab uses these
   // endpoints to let anyone check a URL or upload a file against VirusTotal
