@@ -7,6 +7,8 @@
     safety: true,
     proxyLinks: true,
     perPage: 50,
+    safeSearch: true,
+    theme: null, // managed by themes.js; mirrored here for export
   };
   function loadSettings() {
     try {
@@ -380,7 +382,8 @@
     var instant = instantAnswer(q);
     if (instant) $("results").innerHTML = renderInstantCard(instant);
 
-    var u = "/api/search?q=" + encodeURIComponent(q) + "&page=" + state.page + "&per_page=" + settings.perPage;
+    var safeParam = settings.safeSearch !== false ? "" : "&safe=0";
+    var u = "/api/search?q=" + encodeURIComponent(q) + "&page=" + state.page + "&per_page=" + settings.perPage + safeParam;
     var t0 = performance.now();
     var data;
     try {
@@ -435,8 +438,9 @@
     var instantHtml = instant ? renderInstantCard(instant) : "";
     var serverAnswerHtml = data.instant ? renderServerAnswerBox(data.instant) : "";
     var dymHtml = renderDidYouMean(data.didYouMean);
+    var hotelHtml = data.hotelCard ? renderHotelCard(data.hotelCard) : "";
     var highlightTerms = buildHighlightTerms(q);
-    var html = instantHtml + serverAnswerHtml + dymHtml + results.map(function (r, i) {
+    var html = instantHtml + serverAnswerHtml + dymHtml + hotelHtml + results.map(function (r, i) {
       return renderResult(r, i, highlightTerms);
     }).join("");
     html += renderRelated(data.related);
@@ -487,6 +491,22 @@
     } catch (e) {
       return escaped;
     }
+  }
+
+  // Render a hotel results card returned by the /api/search hotelCard field.
+  // The server already HTML-escaped all values inside the card HTML, so we
+  // just wrap it in a labelled section element.
+  function renderHotelCard(card) {
+    if (!card || !card.html) return "";
+    return (
+      '<section class="hotel-results-section" aria-label="Hotel results from ' + esc(card.source || "Booking.com") + '">' +
+      '<div class="hotel-results-header">' +
+      '<span class="hotel-results-label">Hotels</span>' +
+      '<span class="hotel-results-source">via ' + esc(card.source || "Booking.com") + '</span>' +
+      '</div>' +
+      card.html +
+      '</section>'
+    );
   }
 
   function renderServerAnswerBox(ans) {
@@ -734,19 +754,56 @@
   function closeModal(el) { el.hidden = true; document.body.style.overflow = ""; }
 
   function refreshSettingsUI() {
-    $("setting-safety").checked = !!settings.safety;
-    $("setting-proxylinks").checked = !!settings.proxyLinks;
-    $("setting-perpage").value = String(settings.perPage);
+    var safetyEl = $("setting-safety");
+    var proxyEl = $("setting-proxylinks");
+    var perPageEl = $("setting-perpage");
+    var safeSearchEl = $("setting-safesearch");
+    if (safetyEl) safetyEl.checked = !!settings.safety;
+    if (proxyEl) proxyEl.checked = !!settings.proxyLinks;
+    if (perPageEl) perPageEl.value = String(settings.perPage);
+    if (safeSearchEl) safeSearchEl.checked = settings.safeSearch !== false;
+    // Sync theme select with themes.js state
+    var themeEl = $("theme");
+    if (themeEl) {
+      try { themeEl.value = localStorage.getItem("atomic.theme") || "system"; } catch (e) { /* ignore */ }
+    }
+    // Sync AI toggle with ai.js state
+    var aiEl = $("setting-ai");
+    if (aiEl && window.AtomicAI) {
+      aiEl.checked = window.AtomicAI.isEnabled();
+    }
+    updateSafeSearchIndicator();
+  }
+
+  // Show/hide a "Safe Search ON" chip in the topbar when safe search is active.
+  function updateSafeSearchIndicator() {
+    var indicator = $("safe-search-indicator");
+    if (!indicator) return;
+    var on = settings.safeSearch !== false;
+    indicator.hidden = !on;
+    indicator.title = on
+      ? "Safe Search is ON — adult content is filtered"
+      : "Safe Search is OFF";
   }
 
   function bindSettings() {
-    $("setting-safety").addEventListener("change", function (e) { settings.safety = e.target.checked; saveSettings(settings); });
-    $("setting-proxylinks").addEventListener("change", function (e) { settings.proxyLinks = e.target.checked; saveSettings(settings); });
-    $("setting-perpage").addEventListener("change", function (e) {
+    var safetyEl = $("setting-safety");
+    var proxyEl = $("setting-proxylinks");
+    var perPageEl = $("setting-perpage");
+    var safeSearchEl = $("setting-safesearch");
+    if (safetyEl) safetyEl.addEventListener("change", function (e) { settings.safety = e.target.checked; saveSettings(settings); });
+    if (proxyEl) proxyEl.addEventListener("change", function (e) { settings.proxyLinks = e.target.checked; saveSettings(settings); });
+    if (perPageEl) perPageEl.addEventListener("change", function (e) {
       settings.perPage = Math.max(10, Math.min(100, Number(e.target.value) || 50));
       saveSettings(settings);
     });
-    $("submit-form").addEventListener("submit", async function (e) {
+    if (safeSearchEl) safeSearchEl.addEventListener("change", function (e) {
+      settings.safeSearch = e.target.checked;
+      saveSettings(settings);
+      updateSafeSearchIndicator();
+    });
+    var submitFormEl = $("submit-form");
+    if (submitFormEl) submitFormEl.addEventListener("submit", async function (e) {
       e.preventDefault();
       var url = $("submit-url").value.trim();
       if (!url) return;
@@ -767,6 +824,9 @@
 
   /* ---------------- Boot ---------------- */
   document.addEventListener("DOMContentLoaded", function () {
+    // Initialise safe-search indicator on boot.
+    updateSafeSearchIndicator();
+
     // Modal open/close wiring.
     var openSettings = function () { refreshSettingsUI(); openModal("settings-modal"); };
     $("open-settings").addEventListener("click", openSettings);
@@ -957,6 +1017,13 @@
         e.preventDefault();
         var helpBtn = document.getElementById("adv-help-btn");
         if (helpBtn) helpBtn.click();
+        return;
+      }
+      // Ctrl+K / Cmd+K — focus search (standard browser-search shortcut)
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        var searchEl = $("q") || $("q-hero");
+        if (searchEl) { searchEl.focus(); searchEl.select(); }
         return;
       }
     });
