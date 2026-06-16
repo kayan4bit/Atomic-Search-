@@ -10,6 +10,7 @@ import { startCrawler } from "./src/crawler.js";
 import { startIndexSync } from "./src/git_sync.js";
 import { startMetasearchScraper } from "./src/metasearch_scraper.js";
 import { startFastIndexer } from "./src/fast-indexer.js";
+import { startMonitoring } from "./src/monitoring.js";
 
 const port = Number(process.env.PORT) || 3000;
 
@@ -56,6 +57,10 @@ async function main() {
   // Optional meta search scraper — feeds external result URLs into the
   // crawler queue. Only active when ENABLE_METASEARCH=1 is set.
   startMetasearchScraper();
+
+  // Monitoring — tracks indexing progress, search performance, and system
+  // health. Logs aggregate metrics every 10 minutes (no PII).
+  startMonitoring();
 }
 
 main().catch((err) => {
