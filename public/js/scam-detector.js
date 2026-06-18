@@ -1,172 +1,144 @@
-// Scam detector — check URLs and domains for fraud indicators
+// Scam detector — check URLs and domains for fraud indicators.
+// Uses /api/check-domain (heuristic + optional ScamAdviser, no API key needed).
 (function () {
   "use strict";
 
-  // Add scam warning badges to results
+  var SCAM_CACHE = {};
+
+  // Add scam warning badges to results — only for WARNING/DANGER to avoid noise.
   function initScamDetector() {
-    const resultsContainer = document.getElementById("results");
+    var resultsContainer = document.getElementById("results");
     if (!resultsContainer) return;
 
-    // Watch for new results
-    const observer = new MutationObserver(() => {
+    // Watch for new results being injected
+    var observer = new MutationObserver(function () {
       checkResultsForScams();
     });
-
-    observer.observe(resultsContainer, {
-      childList: true,
-      subtree: true,
-    });
-
+    observer.observe(resultsContainer, { childList: true, subtree: false });
     checkResultsForScams();
   }
 
-  async function checkResultsForScams() {
-    const results = document.querySelectorAll(".result");
-    for (const result of results) {
-      if (result.dataset.scamChecked) continue;
+  function checkResultsForScams() {
+    var results = document.querySelectorAll(".result[data-url]");
+    Array.prototype.forEach.call(results, function (result) {
+      if (result.dataset.scamChecked) return;
       result.dataset.scamChecked = "true";
-
-      const link = result.querySelector("a[href]");
-      if (!link) continue;
-
-      const url = link.href;
-      try {
-        const domain = new URL(url).hostname;
-        const badge = await checkDomainSafety(domain);
-        if (badge) {
-          const hostLine = result.querySelector(".host-line");
-          if (hostLine) {
-            hostLine.appendChild(badge);
-          }
-        }
-      } catch (err) {
-        // Ignore errors
-      }
-    }
+      var url = result.dataset.url;
+      if (!url) return;
+      var domain;
+      try { domain = new URL(url).hostname.replace(/^www\./, ""); } catch (e) { return; }
+      checkDomainSafety(domain).then(function (badge) {
+        if (!badge) return;
+        var hostLine = result.querySelector(".host-line");
+        if (hostLine) hostLine.appendChild(badge);
+      }).catch(function () {});
+    });
   }
 
-  async function checkDomainSafety(domain) {
-    try {
-      const res = await fetch("/api/check-domain", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain }),
-      });
-
-      if (!res.ok) return null;
-      const data = await res.json();
-
-      if (!data.trustScore) return null;
-
-      const badge = document.createElement("span");
+  function checkDomainSafety(domain) {
+    if (SCAM_CACHE[domain] !== undefined) {
+      return Promise.resolve(SCAM_CACHE[domain]);
+    }
+    return fetch("/api/check-domain", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain: domain }),
+    }).then(function (res) {
+      if (!res.ok) { SCAM_CACHE[domain] = null; return null; }
+      return res.json();
+    }).then(function (data) {
+      if (!data || !data.riskLevel || data.riskLevel === "SAFE") {
+        SCAM_CACHE[domain] = null;
+        return null;
+      }
+      var badge = document.createElement("span");
       badge.className = "scam-badge";
-
-      if (data.riskLevel === "SAFE") {
-        badge.className += " safe";
-        badge.title = `Trust score: ${data.trustScore}/100`;
-        badge.innerHTML = '✓ Safe';
-      } else if (data.riskLevel === "CAUTION") {
-        badge.className += " caution";
-        badge.title = `Trust score: ${data.trustScore}/100 - Exercise caution`;
-        badge.innerHTML = '⚠ Caution';
+      if (data.riskLevel === "CAUTION") {
+        badge.className += " scam-caution";
+        badge.title = "Caution: trust score " + (data.trustScore || "?") + "/100";
+        badge.textContent = "⚠ Caution";
       } else if (data.riskLevel === "WARNING") {
-        badge.className += " warning";
-        badge.title = `Trust score: ${data.trustScore}/100 - Suspicious`;
-        badge.innerHTML = '⚠ Warning';
+        badge.className += " scam-warning";
+        badge.title = "Warning: suspicious domain (score " + (data.trustScore || "?") + "/100)";
+        badge.textContent = "⚠ Warning";
       } else if (data.riskLevel === "DANGER") {
-        badge.className += " danger";
-        badge.title = `Trust score: ${data.trustScore}/100 - High risk`;
-        badge.innerHTML = '🚫 Danger';
+        badge.className += " scam-danger";
+        badge.title = "High risk: possible scam (score " + (data.trustScore || "?") + "/100)";
+        badge.textContent = "🚫 Danger";
       }
-
+      SCAM_CACHE[domain] = badge.cloneNode(true);
       return badge;
-    } catch (err) {
+    }).catch(function () {
+      SCAM_CACHE[domain] = null;
       return null;
-    }
+    });
   }
 
-  // Scam check modal
+  // Scam check modal — opened via "Check URL Safety" button
   function initScamCheckModal() {
-    const modal = document.getElementById("scam-check-modal");
-    const openBtn = document.getElementById("open-scam-check");
-    const closeBtn = modal?.querySelector(".modal-close");
-
+    var modal = document.getElementById("scam-check-modal");
+    var openBtn = document.getElementById("open-scam-check");
     if (!modal || !openBtn) return;
 
-    openBtn.addEventListener("click", () => {
-      modal.hidden = false;
-    });
+    openBtn.addEventListener("click", function () { modal.hidden = false; });
 
-    closeBtn?.addEventListener("click", () => {
-      modal.hidden = true;
-    });
+    var closeBtn = modal.querySelector(".modal-close");
+    if (closeBtn) closeBtn.addEventListener("click", function () { modal.hidden = true; });
+    modal.addEventListener("click", function (e) { if (e.target === modal) modal.hidden = true; });
 
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) modal.hidden = true;
-    });
+    var checkBtn = document.getElementById("scam-check-btn");
+    var checkInput = document.getElementById("scam-check-input");
+    var checkOutput = document.getElementById("scam-check-output");
+    if (!checkBtn || !checkInput || !checkOutput) return;
 
-    // Bind check button
-    const checkBtn = document.getElementById("scam-check-btn");
-    const checkInput = document.getElementById("scam-check-input");
-    const checkOutput = document.getElementById("scam-check-output");
-
-    checkBtn?.addEventListener("click", async () => {
-      const domain = checkInput?.value?.trim();
-      if (!domain) return;
-
-      checkOutput.innerHTML = '<span class="loading"></span> Checking...';
-
-      try {
-        const res = await fetch("/api/check-domain", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ domain }),
-        });
-
-        const data = await res.json();
-        if (data.error) {
-          checkOutput.innerHTML = `<div class="error">${escapeHtml(data.error)}</div>`;
+    checkBtn.addEventListener("click", function () {
+      var input = (checkInput.value || "").trim();
+      if (!input) return;
+      checkOutput.innerHTML = '<span class="loading"></span> Analysing…';
+      fetch("/api/check-scam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: input }),
+      }).then(function (res) { return res.json(); }).then(function (data) {
+        if (!data || data.error) {
+          checkOutput.innerHTML = '<p class="hint" style="color:var(--danger)">' + escHtml(data && data.error || "Analysis failed.") + "</p>";
           return;
         }
+        var colors = { SAFE: "var(--ok,#16a34a)", CAUTION: "var(--warn,#f59e0b)", WARNING: "var(--danger,#dc2626)", DANGER: "var(--danger,#dc2626)" };
+        var color = colors[data.riskLevel] || "var(--text-mute)";
+        var flagsHtml = (data.flags && data.flags.length)
+          ? "<ul style='margin:8px 0 0;padding-left:18px'>" + data.flags.map(function (f) { return "<li>" + escHtml(f) + "</li>"; }).join("") + "</ul>"
+          : "";
+        checkOutput.innerHTML =
+          '<div style="border-left:4px solid ' + color + ';padding:12px 16px;border-radius:0 8px 8px 0;background:var(--bg-elev)">' +
+          '<div style="font-size:18px;font-weight:700;color:' + color + '">' + escHtml(data.riskLevel || "UNKNOWN") + "</div>" +
+          '<div style="margin:4px 0;font-size:13px;color:var(--text-mute)">Domain: <strong>' + escHtml(data.domain || input) + "</strong></div>" +
+          '<div style="margin:4px 0">Trust score: <strong style="color:' + color + '">' + (data.trustScore != null ? data.trustScore + "/100" : "N/A") + "</strong></div>" +
+          (data.isBlacklisted ? '<div style="color:var(--danger);margin-top:6px">⚠ Domain is blacklisted</div>' : "") +
+          (data.source === "heuristic" ? '<div style="font-size:11px;color:var(--text-mute);margin-top:6px">Analysis: local heuristics (no external API)</div>' : "") +
+          flagsHtml +
+          '<div style="margin-top:10px"><a href="' + escHtml(data.url || "#") + '" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:var(--accent)">View on ScamAdviser →</a></div>' +
+          "</div>";
+      }).catch(function (err) {
+        checkOutput.innerHTML = '<p class="hint" style="color:var(--danger)">Network error: ' + escHtml(err.message) + "</p>";
+      });
+    });
 
-        const riskColor = {
-          SAFE: "green",
-          CAUTION: "orange",
-          WARNING: "red",
-          DANGER: "darkred",
-        }[data.riskLevel] || "gray";
-
-        checkOutput.innerHTML = `
-          <div class="scam-check-result" style="border-left: 4px solid ${riskColor}; padding: 16px;">
-            <h4>${escapeHtml(domain)}</h4>
-            <div class="scam-score">
-              <span class="score-label">Trust Score:</span>
-              <span class="score-value" style="color: ${riskColor};">${data.trustScore}/100</span>
-            </div>
-            <div class="scam-level">
-              <span class="level-label">Risk Level:</span>
-              <span class="level-value" style="color: ${riskColor}; font-weight: bold;">${data.riskLevel}</span>
-            </div>
-            ${data.isBlacklisted ? '<div class="blacklist-warning">⚠ This domain is blacklisted</div>' : ""}
-            ${data.reports ? `<div class="reports-count">Reports: ${data.reports}</div>` : ""}
-            <a href="${escapeHtml(data.url)}" target="_blank" rel="noopener" class="scam-link">View full report →</a>
-          </div>
-        `;
-      } catch (err) {
-        checkOutput.innerHTML = `<div class="error">Error: ${err.message}</div>`;
-      }
+    // Allow pressing Enter in the input
+    checkInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") checkBtn.click();
     });
   }
 
-  function escapeHtml(text) {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
+  function escHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
   // Initialize
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener("DOMContentLoaded", function () {
       initScamDetector();
       initScamCheckModal();
     });

@@ -69,6 +69,7 @@
         <div class="home-actions">
           <button type="button" id="open-settings-home">Settings</button>
           <button type="button" id="open-submit-home">Submit a URL</button>
+          <button type="button" id="open-scam-check">🔍 Check URL Safety</button>
         </div>
 
         <p id="stats" class="stats"></p>
@@ -187,6 +188,9 @@
         <button data-tab="news" role="tab">News</button>
         <button data-tab="scan" role="tab">Scan</button>
       </nav>
+
+      <!-- Filter / Sort bar — shown after a search returns results -->
+      <div id="filter-sort-bar" class="filter-sort-bar" hidden aria-label="Filter and sort results"></div>
 
       <main>
         <section id="search-meta" class="search-meta" hidden>
@@ -639,6 +643,28 @@
       <span id="ihb-updated" class="ihb-stat">synced recently</span>
     </div>
 
+    <!-- Scam / URL Safety check modal -->
+    <div id="scam-check-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="scam-check-title">
+      <div class="modal">
+        <div class="modal-head">
+          <h2 id="scam-check-title">🔍 Check URL Safety</h2>
+          <button class="icon-btn modal-close" type="button" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="hint">Enter a URL or domain to check for scam/fraud indicators. No API key required — uses local heuristics.</p>
+          <div class="scan-row" style="margin-bottom:12px">
+            <input id="scam-check-input" type="text" placeholder="https://example.com or example.com" autocomplete="off" style="flex:1;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-elev);color:var(--text);font-size:14px" />
+            <button id="scam-check-btn" type="button" style="padding:10px 18px;border-radius:8px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:600">Analyse</button>
+          </div>
+          <div id="scam-check-output"></div>
+        </div>
+      </div>
+    </div>
+
     <script src="/js/themes.js"></script>
     <script src="/js/app.js"></script>
     <script src="/js/extras.js"></script>
@@ -650,5 +676,7 @@
     <script src="/js/anniversary.js"></script>
     <script src="/js/advanced-search.js"></script>
     <script src="/js/voice-search.js"></script>
+    <script src="/js/scam-detector.js"></script>
+    <script src="/js/trivia.js"></script>
   </body>
 </html>
