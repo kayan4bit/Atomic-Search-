@@ -26,7 +26,12 @@
   /* Auth was removed in v2 — Atomic is fully anonymous, no cookies. */
 
   /* ---------------- State ---------------- */
-  var state = { q: "", tab: "all", page: 1 };
+  var state = { q: "", tab: "all", page: 1, sort: "relevance", filterDomain: "", filterType: "" };
+
+  // All results from the last API response — used for client-side filter/sort.
+  var _lastResults = [];
+  var _lastData = null;
+
 
   /* ---------------- Helpers ---------------- */
   function $(id) { return document.getElementById(id); }
@@ -246,13 +251,15 @@
     if (scanEl) scanEl.hidden = state.tab !== "scan";
     // Results-chip + meta only make sense on search tabs. Hide them on scan/images.
     var chip = $("index-chip"); if (chip && !isSearchTab && state.tab !== "scan") chip.hidden = true;
+    // Hide filter bar on non-search tabs
+    var filterBar = $("filter-sort-bar");
+    if (filterBar && !isSearchTab) filterBar.hidden = true;
     $("empty").hidden = true;
     if (state.tab === "scan") return; // scan tab doesn't use the query
     if (!state.q) return;
     if (state.tab === "images") doImages(state.q);
     else doSearch(state.q);
   }
-
   /* ---------------- Instant answers (math, time, units) ----------------
      Run entirely in the browser — no server call, no external API.
      If the query maps to a deterministic local answer, we prepend a
@@ -308,6 +315,7 @@
     var v = (pct / 100) * of;
     return { kind: "percent", text: pct + "% of " + of + " = " + (Math.round(v * 1e6) / 1e6) };
   }
+
 
   function tryUnitConvert(q) {
     var m = (q || "").trim().toLowerCase().match(/^(-?[\d.]+)\s*([a-z]+)\s*(?:to|in|->)\s*([a-z]+)$/i);
@@ -371,27 +379,176 @@
     try { localStorage.removeItem(HIST_KEY); } catch (e) { /* ignore */ }
   }
 
+  /* ---------------- Filter / Sort / Pagination helpers ---------------- */
+
+  // Apply client-side filter and sort to the full result set, then re-render.
+  function applyFilterSort() {
+    if (!_lastResults.length || !_lastData) return;
+    var filtered = _lastResults.slice();
+
+    // Domain filter
+    if (state.filterDomain) {
+      var fd = state.filterDomain.toLowerCase();
+      filtered = filtered.filter(function (r) {
+        var h = (r.host || hostOf(r.url) || "").toLowerCase();
+        return h === fd || h.endsWith("." + fd);
+      });
+    }
+
+    // Type filter (news = has date-like snippet, articles = general)
+    if (state.filterType === "news") {
+      filtered = filtered.filter(function (r) {
+        var s = (r.snippet || r.title || "").toLowerCase();
+        return /\b(news|today|yesterday|hours? ago|minutes? ago|\d{4})\b/.test(s);
+      });
+    } else if (state.filterType === "articles") {
+      filtered = filtered.filter(function (r) {
+        var s = (r.snippet || r.title || "").toLowerCase();
+        return !/\b(news|today|yesterday|hours? ago|minutes? ago)\b/.test(s);
+      });
+    }
+
+    // Sort
+    if (state.sort === "domain") {
+      filtered.sort(function (a, b) {
+        var ha = (a.host || hostOf(a.url) || "").toLowerCase();
+        var hb = (b.host || hostOf(b.url) || "").toLowerCase();
+        return ha < hb ? -1 : ha > hb ? 1 : 0;
+      });
+    } else if (state.sort === "date") {
+      // Heuristic: prefer results with date-like snippets first
+      filtered.sort(function (a, b) {
+        var sa = (a.snippet || "").toLowerCase();
+        var sb = (b.snippet || "").toLowerCase();
+        var da = /\b(today|yesterday|\d+ hours? ago|\d+ minutes? ago)\b/.test(sa) ? 1 : 0;
+        var db = /\b(today|yesterday|\d+ hours? ago|\d+ minutes? ago)\b/.test(sb) ? 1 : 0;
+        return db - da;
+      });
+    }
+    // "relevance" = keep original order
+
+    var highlightTerms = buildHighlightTerms(state.q);
+    var instant = instantAnswer(state.q);
+    var instantHtml = instant ? renderInstantCard(instant) : "";
+    var serverAnswerHtml = _lastData.instant ? renderServerAnswerBox(_lastData.instant) : "";
+    var dymHtml = renderDidYouMean(_lastData.didYouMean);
+    var hotelHtml = _lastData.hotelCard ? renderHotelCard(_lastData.hotelCard) : "";
+
+    if (!filtered.length) {
+      $("results").innerHTML = instantHtml + serverAnswerHtml + dymHtml + hotelHtml +
+        '<p class="empty-filter">No results match the current filters. <a href="#" id="clear-filters-link">Clear filters</a></p>';
+      var clf = $("clear-filters-link");
+      if (clf) clf.addEventListener("click", function (e) { e.preventDefault(); clearFilters(); });
+    } else {
+      var html = instantHtml + serverAnswerHtml + dymHtml + hotelHtml +
+        filtered.map(function (r, i) { return renderResult(r, i, highlightTerms); }).join("");
+      html += renderRelated(_lastData.related);
+      $("results").innerHTML = html;
+    }
+
+    // Update filter bar to reflect active state
+    renderFilterBar(_lastResults);
+  }
+
+  function clearFilters() {
+    state.filterDomain = "";
+    state.filterType = "";
+    state.sort = "relevance";
+    applyFilterSort();
+    renderFilterBar(_lastResults);
+  }
+
+  // Render the filter/sort toolbar below the tabs.
+  function renderFilterBar(results) {
+    var bar = $("filter-sort-bar");
+    if (!bar) return;
+    if (!results || !results.length) { bar.hidden = true; return; }
+
+    // Collect unique domains from results for the domain filter dropdown
+    var domainCounts = {};
+    results.forEach(function (r) {
+      var h = (r.host || hostOf(r.url) || "").toLowerCase();
+      if (h) domainCounts[h] = (domainCounts[h] || 0) + 1;
+    });
+    var topDomains = Object.keys(domainCounts)
+      .sort(function (a, b) { return domainCounts[b] - domainCounts[a]; })
+      .slice(0, 8);
+
+    var domainOptions = '<option value="">All domains</option>' +
+      topDomains.map(function (d) {
+        return '<option value="' + esc(d) + '"' + (state.filterDomain === d ? " selected" : "") + ">" + esc(d) + " (" + domainCounts[d] + ")</option>";
+      }).join("");
+
+    bar.hidden = false;
+    bar.innerHTML =
+      '<div class="filter-bar-inner">' +
+      '<label class="filter-label">Filter by domain:' +
+      '<select id="filter-domain-sel" class="filter-select">' + domainOptions + "</select>" +
+      "</label>" +
+      '<label class="filter-label">Type:' +
+      '<select id="filter-type-sel" class="filter-select">' +
+      '<option value=""' + (!state.filterType ? " selected" : "") + ">All</option>" +
+      '<option value="news"' + (state.filterType === "news" ? " selected" : "") + ">News</option>" +
+      '<option value="articles"' + (state.filterType === "articles" ? " selected" : "") + ">Articles</option>" +
+      "</select>" +
+      "</label>" +
+      '<label class="filter-label">Sort:' +
+      '<select id="sort-sel" class="filter-select">' +
+      '<option value="relevance"' + (state.sort === "relevance" ? " selected" : "") + ">Relevance</option>" +
+      '<option value="date"' + (state.sort === "date" ? " selected" : "") + ">Date (newest)</option>" +
+      '<option value="domain"' + (state.sort === "domain" ? " selected" : "") + ">Domain A–Z</option>" +
+      "</select>" +
+      "</label>" +
+      (state.filterDomain || state.filterType || state.sort !== "relevance"
+        ? '<button type="button" id="clear-filters-btn" class="filter-clear-btn">✕ Clear</button>'
+        : "") +
+      "</div>";
+
+    var domSel = $("filter-domain-sel");
+    var typeSel = $("filter-type-sel");
+    var sortSel = $("sort-sel");
+    var clearBtn = $("clear-filters-btn");
+
+    if (domSel) domSel.addEventListener("change", function () {
+      state.filterDomain = domSel.value;
+      applyFilterSort();
+    });
+    if (typeSel) typeSel.addEventListener("change", function () {
+      state.filterType = typeSel.value;
+      applyFilterSort();
+    });
+    if (sortSel) sortSel.addEventListener("change", function () {
+      state.sort = sortSel.value;
+      applyFilterSort();
+    });
+    if (clearBtn) clearBtn.addEventListener("click", clearFilters);
+  }
+
   async function doSearch(q) {
     pushHistory(q);
     state.q = q;
-    $(\"search-meta\").hidden = false;
-    $(\"search-meta\").innerHTML = '<span><span class=\"loading\"></span>Searching our index…</span>';
-    $(\"empty\").hidden = true;
-    $(\"results\").innerHTML = \"\";
-    $(\"pager\").hidden = true;
+    $("search-meta").hidden = false;
+    $("search-meta").innerHTML = '<span><span class="loading"></span>Searching our index…</span>';
+    $("empty").hidden = true;
+    $("results").innerHTML = "";
+    $("pager").hidden = true;
+    // Hide filter bar while loading
+    var filterBarEl = $("filter-sort-bar");
+    if (filterBarEl) filterBarEl.hidden = true;
     // Show loading skeleton while fetching
-    var skeletonEl = $(\"results-skeleton\");
+    var skeletonEl = $("results-skeleton");
     if (skeletonEl) skeletonEl.hidden = false;
     // Hide AI summary while loading
-    var aiSummarySection = $(\"ai-summary-section\");
+    var aiSummarySection = $("ai-summary-section");
     if (aiSummarySection) aiSummarySection.hidden = true;
     var instant = instantAnswer(q);
-    if (instant) $(\"results\").innerHTML = renderInstantCard(instant);
+    if (instant) $("results").innerHTML = renderInstantCard(instant);
 
-    var safeParam = settings.safeSearch !== false ? \"\" : \"&safe=0\";
-    var u = \"/api/search?q=\" + encodeURIComponent(q) + \"&page=\" + state.page + \"&per_page=\" + settings.perPage + safeParam;
+    var safeParam = settings.safeSearch !== false ? "" : "&safe=0";
+    var u = "/api/search?q=" + encodeURIComponent(q) + "&page=" + state.page + "&per_page=" + settings.perPage + safeParam;
     var t0 = performance.now();
     var data;
+
     try {
       var res = await fetch(u);
       // Always try to parse JSON, but tolerate a non-JSON body (e.g. a
@@ -401,15 +558,14 @@
       try {
         data = JSON.parse(body);
       } catch (parseErr) {
-        data = { error: \"bad_response\", message: \"Server returned \" + res.status };
+        data = { error: "bad_response", message: "Server returned " + res.status };
       }
     } catch (e) {
       if (skeletonEl) skeletonEl.hidden = true;
-      $(\"search-meta\").innerHTML = '<span style=\"color:var(--danger)\">Network error — check your connection and try again.</span>';
+      $("search-meta").innerHTML = '<span style="color:var(--danger)">Network error — check your connection and try again.</span>';
       return;
     }
-    // Hide skeleton once data arrives
-    if (skeletonEl) skeletonEl.hidden = true;
+
     if (data && data.error === \"rate_limited\") {
       $(\"search-meta\").innerHTML = '<span style=\"color:var(--text-dim)\">Slow down — rate limited. Try again in 30 seconds.</span>';
       return;
@@ -456,12 +612,21 @@
     var dymHtml = renderDidYouMean(data.didYouMean);
     var hotelHtml = data.hotelCard ? renderHotelCard(data.hotelCard) : \"\";
     var highlightTerms = buildHighlightTerms(q);
+    // Store results for client-side filter/sort
+    _lastResults = results;
+    _lastData = data;
+    // Reset filters on new search
+    state.filterDomain = "";
+    state.filterType = "";
+    state.sort = "relevance";
+
     var html = instantHtml + serverAnswerHtml + dymHtml + hotelHtml + results.map(function (r, i) {
       return renderResult(r, i, highlightTerms);
-    }).join(\"\");
+    }).join("");
     html += renderRelated(data.related);
-    $(\"results\").innerHTML = html;
+    $("results").innerHTML = html;
     renderPager(data);
+    renderFilterBar(results);
 
     // Lazy-fetch safety verdicts in batches of 10.
     if (settings.safety) lazyLoadSafety(results);
@@ -472,6 +637,7 @@
     setTimeout(refreshIndexChip, 2500);
     setTimeout(refreshIndexChip, 7000);
   }
+
 
   // Build the set of terms we should visually highlight in result titles
   // and snippets (Google-style bold / underline). We drop stopwords and

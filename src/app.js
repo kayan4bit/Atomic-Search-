@@ -529,6 +529,92 @@ function scoreOwnIndexRow(row, query) {
   return score;
 }
 
+// Heuristic domain safety check — no external API required.
+// Analyses the domain name itself for common scam/fraud patterns.
+// Returns a result shaped like the ScamAdviser response so the frontend
+// can render it uniformly regardless of which path was taken.
+function heuristicDomainCheck(domain) {
+  if (!domain) return { domain, trustScore: 50, riskLevel: "UNKNOWN", flags: [] };
+
+  const d = domain.toLowerCase().replace(/^www\./, "");
+  const flags = [];
+  let penalty = 0;
+
+  // Suspicious TLDs commonly used for free/throwaway domains
+  const SUSPICIOUS_TLDS = [".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".click",
+    ".loan", ".win", ".download", ".stream", ".gdn", ".racing", ".review", ".trade",
+    ".accountant", ".science", ".work", ".party", ".date", ".faith", ".bid", ".webcam"];
+  const tld = "." + d.split(".").slice(-1)[0];
+  if (SUSPICIOUS_TLDS.includes(tld)) {
+    flags.push("Suspicious TLD: " + tld);
+    penalty += 35;
+  }
+
+  // Suspicious keywords in domain name
+  const SUSPICIOUS_KEYWORDS = [
+    "free-", "-free", "win-", "-win", "prize", "reward", "claim", "lucky",
+    "bonus", "gift", "cash", "money", "earn", "profit", "invest", "crypto",
+    "bitcoin", "wallet", "login-", "-login", "secure-", "-secure", "verify",
+    "account-", "-account", "update-", "confirm", "bank", "paypal", "amazon",
+    "apple-", "google-", "microsoft-", "netflix-", "support-", "-support",
+    "help-", "service-", "official-", "-official",
+  ];
+  for (const kw of SUSPICIOUS_KEYWORDS) {
+    if (d.includes(kw)) {
+      flags.push("Suspicious keyword: " + kw.replace(/-/g, ""));
+      penalty += 15;
+      break; // one flag per category
+    }
+  }
+
+  // Excessive hyphens (e.g. free-money-now-click.com)
+  const hyphens = (d.match(/-/g) || []).length;
+  if (hyphens >= 3) {
+    flags.push("Excessive hyphens (" + hyphens + ")");
+    penalty += 10;
+  }
+
+  // Very long domain names (often auto-generated)
+  const namePart = d.split(".")[0] || "";
+  if (namePart.length > 30) {
+    flags.push("Unusually long domain name");
+    penalty += 10;
+  }
+
+  // Numeric-heavy domains (e.g. 1234free5678.com)
+  const digits = (namePart.match(/\d/g) || []).length;
+  if (digits > 4) {
+    flags.push("Many digits in domain name");
+    penalty += 8;
+  }
+
+  // Known safe TLDs get a small trust boost
+  const TRUSTED_TLDS = [".gov", ".edu", ".mil", ".org", ".co.uk", ".ac.uk"];
+  if (TRUSTED_TLDS.some((t) => d.endsWith(t))) {
+    penalty -= 15;
+    flags.push("Trusted TLD");
+  }
+
+  const trustScore = Math.max(0, Math.min(100, 100 - penalty));
+  let riskLevel;
+  if (trustScore >= 80) riskLevel = "SAFE";
+  else if (trustScore >= 60) riskLevel = "CAUTION";
+  else if (trustScore >= 40) riskLevel = "WARNING";
+  else riskLevel = "DANGER";
+
+  return {
+    domain: d,
+    trustScore,
+    riskLevel,
+    isBlacklisted: false,
+    reports: 0,
+    flags,
+    source: "heuristic",
+    lastChecked: new Date().toISOString(),
+    url: "https://www.scamadviser.com/check-website/" + encodeURIComponent(d),
+  };
+}
+
 export function buildApp() {
   const app = new Hono();
 
@@ -1387,6 +1473,76 @@ ${verdict === "pending" ? `<script>
     } catch (e) {
       return c.json({ ok: false, error: String(e?.message || e) }, 400);
     }
+  });
+
+  // /api/check-domain — heuristic-only domain safety check (no API key needed).
+  // Used by the scam-detector.js frontend module and the "Check URL Safety" button.
+  // Falls back to ScamAdviser when available, otherwise runs local heuristics.
+  app.post("/api/check-domain", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    let domain = (body.domain || body.url || "").trim().toLowerCase();
+    // Accept full URLs — extract hostname
+    if (domain.startsWith("http")) {
+      try { domain = new URL(domain).hostname.replace(/^www\./, ""); } catch { /* ignore */ }
+    }
+    domain = domain.replace(/^www\./, "");
+    if (!domain) return c.json({ ok: false, error: "Missing domain" }, 400);
+
+    const cacheKey = `checkdomain:${domain}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return c.json({ ok: true, ...cached, cached: true });
+
+    // Try ScamAdviser first (best-effort, may fail without API key)
+    let scamResult = null;
+    try {
+      scamResult = await Promise.race([
+        checkDomain(domain),
+        new Promise((r) => setTimeout(() => r(null), 4000)),
+      ]);
+    } catch { /* ignore */ }
+
+    if (scamResult) {
+      await cacheSet(cacheKey, scamResult, 24 * 60 * 60 * 1000);
+      return c.json({ ok: true, ...scamResult });
+    }
+
+    // Local heuristic fallback — no external API required
+    const result = heuristicDomainCheck(domain);
+    await cacheSet(cacheKey, result, 6 * 60 * 60 * 1000);
+    return c.json({ ok: true, ...result });
+  });
+
+  // /api/check-scam — alias for /api/check-domain, accepts { url } body.
+  // Provides detailed heuristic analysis for the "Check URL Safety" feature.
+  app.post("/api/check-scam", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    let url = (body.url || body.domain || "").trim();
+    let domain = url;
+    if (url.startsWith("http")) {
+      try { domain = new URL(url).hostname.replace(/^www\./, ""); } catch { /* ignore */ }
+    }
+    domain = domain.replace(/^www\./, "").toLowerCase();
+    if (!domain) return c.json({ ok: false, error: "Missing URL or domain" }, 400);
+
+    const cacheKey = `checkscam:${domain}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return c.json({ ok: true, ...cached, cached: true });
+
+    let scamResult = null;
+    try {
+      scamResult = await Promise.race([
+        checkDomain(domain),
+        new Promise((r) => setTimeout(() => r(null), 4000)),
+      ]);
+    } catch { /* ignore */ }
+
+    const heuristic = heuristicDomainCheck(domain);
+    const result = scamResult
+      ? { ...heuristic, ...scamResult, heuristic }
+      : heuristic;
+
+    await cacheSet(cacheKey, result, 6 * 60 * 60 * 1000);
+    return c.json({ ok: true, ...result });
   });
 
   return app;

@@ -1045,3 +1045,285 @@ main {
 
 .voice-btn:hover { color: var(--accent); }
 .voice-btn.listening { color: var(--danger); animation: pulse-dot 0.8s ease-in-out infinite; }
+
+/* ── Filter / Sort bar ────────────────────────────────────── */
+.filter-sort-bar {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-soft);
+  padding: 0 24px;
+  position: sticky;
+  top: 100px;
+  z-index: 12;
+}
+
+.filter-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 0;
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-mute);
+  white-space: nowrap;
+}
+
+.filter-select {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+
+.filter-select:hover,
+.filter-select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.filter-clear-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-mute);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+  margin-left: auto;
+}
+
+.filter-clear-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.empty-filter {
+  color: var(--text-mute);
+  font-size: 14px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.empty-filter a {
+  color: var(--accent);
+}
+
+/* ── Scam / safety badges ─────────────────────────────────── */
+.scam-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: default;
+}
+
+.scam-badge.scam-caution {
+  background: color-mix(in srgb, #f59e0b 15%, transparent);
+  color: #f59e0b;
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent);
+}
+
+.scam-badge.scam-warning {
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+  color: #ef4444;
+  border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
+}
+
+.scam-badge.scam-danger {
+  background: color-mix(in srgb, #dc2626 20%, transparent);
+  color: #dc2626;
+  border: 1px solid color-mix(in srgb, #dc2626 40%, transparent);
+  animation: scam-pulse 2s ease-in-out infinite;
+}
+
+@keyframes scam-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ── Trivia modal ─────────────────────────────────────────── */
+.trivia-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-mute);
+  padding: 24px 0;
+}
+
+.trivia-error {
+  color: var(--danger);
+  padding: 16px 0;
+}
+
+.trivia-meta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.trivia-category {
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 2px 10px;
+  color: var(--text-mute);
+}
+
+.trivia-difficulty {
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 2px 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.trivia-diff-easy { background: color-mix(in srgb, #16a34a 15%, transparent); color: #16a34a; border: 1px solid color-mix(in srgb, #16a34a 30%, transparent); }
+.trivia-diff-medium { background: color-mix(in srgb, #f59e0b 15%, transparent); color: #f59e0b; border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent); }
+.trivia-diff-hard { background: color-mix(in srgb, #ef4444 15%, transparent); color: #ef4444; border: 1px solid color-mix(in srgb, #ef4444 30%, transparent); }
+
+.trivia-question {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin: 0 0 18px;
+  color: var(--text);
+}
+
+.trivia-answers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.trivia-answer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text);
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.trivia-answer:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--bg-elev-1);
+}
+
+.trivia-answer:disabled {
+  cursor: default;
+}
+
+.trivia-answer.trivia-correct {
+  border-color: #16a34a;
+  background: color-mix(in srgb, #16a34a 12%, transparent);
+  color: #16a34a;
+}
+
+.trivia-answer.trivia-wrong {
+  border-color: #ef4444;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  color: #ef4444;
+}
+
+.trivia-answer-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.trivia-feedback {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trivia-fb-correct {
+  background: color-mix(in srgb, #16a34a 12%, transparent);
+  color: #16a34a;
+  border: 1px solid color-mix(in srgb, #16a34a 30%, transparent);
+}
+
+.trivia-fb-wrong {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
+}
+
+.trivia-next-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+
+.trivia-next-btn:hover { opacity: 0.88; }
+
+.trivia-score {
+  font-size: 13px;
+  color: var(--text-mute);
+  text-align: right;
+}
+
+/* ── Home actions extra buttons ───────────────────────────── */
+#open-trivia,
+#open-scam-check {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+#open-trivia:hover,
+#open-scam-check:hover {
+  border-color: var(--accent);
+  background: var(--bg-elev-1);
+}
