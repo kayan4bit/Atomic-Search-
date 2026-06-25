@@ -63,30 +63,44 @@ function privacyHeaders() {
 }
 
 function securityHeaders() {
-  // Strict security posture. CSP allows only same-origin resources plus the
-  // two things the UI actually uses: Google's favicon-service for host
-  // icons, and inline CSS inside theme previews. No external scripts, no
-  // frames, no connect-src beyond self so the frontend can't accidentally
-  // beacon off-site.
+  // v5: Enhanced security posture with additional protections
+  // Strict CSP allows only same-origin resources plus Google's favicon-service.
+  // No external scripts, no frames, no connect-src beyond self.
   const csp =
     "default-src 'self'; " +
-    "script-src 'self'; " +
+    "script-src 'self' 'nonce-{NONCE}'; " + // Nonce for any inline scripts
     "style-src 'self' 'unsafe-inline'; " +
-    "img-src 'self' data: https://www.google.com https://*.gstatic.com https://*.googleusercontent.com; " +
+    "img-src 'self' data: blob: https://www.google.com https://*.gstatic.com https://*.googleusercontent.com https://*.duckduckgo.com https://*.bing.com; " +
     "connect-src 'self'; " +
     "frame-ancestors 'none'; " +
     "form-action 'self'; " +
     "base-uri 'self'; " +
-    "object-src 'none'";
+    "object-src 'none'; " +
+    "worker-src 'self' blob:; " +
+    "child-src 'self' blob:;";
   return {
     "Content-Security-Policy": csp,
     "X-Frame-Options": "DENY",
     "X-Content-Type-Options": "nosniff",
     "X-XSS-Protection": "1; mode=block",
     "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp",
     // HSTS is only meaningful over TLS; safe to set anyway and let browsers
     // ignore it on HTTP. Two years, no preload (operators can opt in).
-    "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+    // Prevent search engines from indexing the search page itself
+    "X-Robots-Tag": "noindex, noarchive, nofollow",
+    // Privacy: Don't send referrer to external sites
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    // Permissions policy - disable unnecessary browser features
+    "Permissions-Policy": "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), " +
+      "bluetooth=(), camera=(), cross-origin-isolated=(), display-capture=(), " +
+      "document-domain=(), encrypted-media=(), execution-while-not-rendered=(), " +
+      "execution-while-out-of-viewport=(), fullscreen=(self), geolocation=(), " +
+      "gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), " +
+      "navigation-override=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), " +
+      "screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=()",
   };
 }
 

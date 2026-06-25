@@ -492,6 +492,64 @@
       </div>
     </div>
 
+    <!-- "Leaving us?" retention modal - shown when clicking external links -->
+    <div id="leaving-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="leaving-title">
+      <div class="modal">
+        <div class="modal-head">
+          <h2 id="leaving-title" class="sr-only">Leaving Atomic Search</h2>
+          <button id="leaving-close" class="icon-btn modal-close" type="button" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="leaving-content">
+            <div class="leaving-icon">🔒</div>
+            <h2 class="leaving-title">Are you sure you want to leave?</h2>
+            <p class="leaving-question">Here's why you might want to stay with Atomic Search:</p>
+            
+            <div class="leaving-reasons">
+              <div class="leaving-reason" data-reason="privacy">
+                <span class="reason-icon">🛡️</span>
+                <div class="reason-text">
+                  <strong>Your Privacy Stays Protected</strong>
+                  Atomic never tracks your clicks or shares your browsing data. The site you're about to visit will see your real IP address.
+                </div>
+              </div>
+              <div class="leaving-reason" data-reason="safety">
+                <span class="reason-icon">✅</span>
+                <div class="reason-text">
+                  <strong>Safety Scanning is Lost</strong>
+                  Atomic scans URLs for malware before you click. Outside links bypass our safety checks entirely.
+                </div>
+              </div>
+              <div class="leaving-reason" data-reason="index">
+                <span class="reason-icon">⚡</span>
+                <div class="reason-text">
+                  <strong>Help Grow Our Index</strong>
+                  Every search helps Atomic learn and improve. Leaving means starting fresh elsewhere.
+                </div>
+              </div>
+            </div>
+            
+            <div class="leaving-actions">
+              <button id="leaving-stay" class="leaving-btn stay" type="button">
+                Stay on Atomic Search
+              </button>
+              <button id="leaving-go" class="leaving-btn go" type="button">
+                I'm sure, open the link
+              </button>
+            </div>
+            
+            <p class="leaving-footer">
+              Your search history is never stored. Atomic respects your privacy.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- What's-new modal: shown once per version. Gated on
          localStorage key atomic:whatsnew:v3.1.0 so bumping the
          version re-triggers it. "Don't show again" sets the key
@@ -595,5 +653,6 @@
     <script src="/js/anniversary.js"></script>
     <script src="/js/advanced-search.js"></script>
     <script src="/js/voice-search.js"></script>
+    <script src="/js/retention.js"></script>
   </body>
 </html>
