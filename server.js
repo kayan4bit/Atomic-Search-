@@ -12,6 +12,9 @@ import { startMetasearchScraper } from "./src/metasearch_scraper.js";
 
 const port = Number(process.env.PORT) || 3000;
 
+// Railway/Render compatibility: ensure we're in production mode
+process.env.NODE_ENV = process.env.NODE_ENV || "production";
+
 // IMPORTANT: We must restore the SQLite snapshot from the data branch BEFORE
 // any request (or the crawler) is allowed to touch the DB. If a request
 // opens better-sqlite3 on an empty DATA_DIR during restore, the subsequent
@@ -20,38 +23,55 @@ const port = Number(process.env.PORT) || 3000;
 // snapshot too. Hence we await the restore phase before starting the HTTP
 // server.
 async function main() {
-  await startIndexSync().catch((err) =>
-    console.error("index-sync init failed:", err?.message || err)
-  );
+  try {
+    // Start index sync with graceful degradation
+    await startIndexSync().catch((err) =>
+      console.error("index-sync init failed (continuing without sync):", err?.message || err)
+    );
 
-  const app = buildApp();
+    const app = buildApp();
 
-  // Pretty URL for /tools — delivers the widgets page without the .html
-  // suffix. Must be registered BEFORE the static fallback so the fallback
-  // doesn't send index.html.
-  app.get("/tools", serveStatic({ path: "./public/tools.html" }));
+    // Pretty URL for /tools — delivers the widgets page without the .html
+    // suffix. Must be registered BEFORE the static fallback so the fallback
+    // doesn't send index.html.
+    app.get("/tools", serveStatic({ path: "./public/tools.html" }));
 
-  // Static frontend. `serveStatic` handles everything under ./public;
-  // anything else falls through to index.html so client-side routing keeps
-  // working.
-  app.use("/*", serveStatic({ root: "./public" }));
-  app.get("*", serveStatic({ path: "./public/index.html" }));
+    // Static frontend. `serveStatic` handles everything under ./public;
+    // anything else falls through to index.html so client-side routing keeps
+    // working.
+    app.use("/*", serveStatic({ root: "./public" }));
+    app.get("*", serveStatic({ path: "./public/index.html" }));
 
-  serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, (info) => {
-    // Intentionally minimal — no request logging, no IPs (privacy).
-    console.log(`Atomic Search listening on port ${info.port}`);
-  });
+    serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, (info) => {
+      // Intentionally minimal — no request logging, no IPs (privacy).
+      console.log(`Atomic Search v5 listening on port ${info.port}`);
+    });
 
-  // Crawler runs after the restore completes, so the first page it writes
-  // lands alongside the restored snapshot instead of on top of an empty DB.
-  startCrawler(5000);
+    // Crawler runs after the restore completes, so the first page it writes
+    // lands alongside the restored snapshot instead of on top of an empty DB.
+    startCrawler(5000);
 
-  // Optional meta search scraper — feeds external result URLs into the
-  // crawler queue. Only active when ENABLE_METASEARCH=1 is set.
-  startMetasearchScraper();
+    // Optional meta search scraper — feeds external result URLs into the
+    // crawler queue. Only active when ENABLE_METASEARCH=1 is set.
+    startMetasearchScraper();
+    
+    console.log("Atomic Search v5 started successfully");
+  } catch (err) {
+    console.error("Startup error:", err?.message || err);
+    // Don't exit - let Railway retry
+    setTimeout(() => {
+      process.exit(1);
+    }, 1000);
+  }
 }
 
-main().catch((err) => {
-  console.error("atomic-search boot failed:", err?.message || err);
-  process.exit(1);
+// Handle uncaught errors gracefully
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err?.message || err);
 });
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason?.message || reason);
+});
+
+main();
