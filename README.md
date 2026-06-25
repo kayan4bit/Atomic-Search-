@@ -1,33 +1,23 @@
-# Atomic Search
+# Atomic Search v5
 
 A privacy-first search engine with its own growing anonymous index. One
-search box, clean Google-style UI, zero tracking.
+search box, clean Kagi-inspired UI, zero tracking.
 
-- **No trackers.** No cookies on anonymous browsing, no referrer, no analytics,
-  no logs of queries.
-- **Our own index.** A background crawler builds a SQLite index of the pages
-  Atomic surfaces; strong matches from the index are promoted above everything
-  else and clearly labelled "From our own index". The index grows with every
-  search and with every URL you submit.
-- **Persistent across restarts.** On Render's free tier (no persistent disk),
-  Atomic snapshots its SQLite DB to a data branch of a GitHub repo and
-  restores it on boot — no Postgres, no external storage service needed,
-  and the site, the running server, and GitHub all stay in sync.
-- **Seven-engine meta layer.** Every query fans out anonymously and in
-  parallel to Startpage, Brave, Bing, DuckDuckGo, Wikipedia, Hacker News,
-  and Reddit. Upstream engines are not identified in the response — results
-  are merged under the single "atomic" brand.
-- **Smart ranking.** Reciprocal Rank Fusion + cross-source agreement boost
-  + keyword relevance + popular-site prior (Wikipedia, MDN, GitHub, arxiv,
-  etc. are nudged up when they actually match the query).
-- **Anonymous view.** Every outbound click can optionally be rewritten to
-  pass through Atomic so the destination never sees your IP or referrer.
-- **Safety checks.** A coloured dot on each result shows whether VirusTotal
-  has flagged it. A `/go` interstitial runs the full check before you leave.
-- **Download scanner.** Signed-in users can paste any download URL and get a
-  VirusTotal verdict across 70+ antivirus engines.
-- **35+ themes** — dark, light, OLED, futuristic, mood. Tokyo Night,
-  Catppuccin, Rosé Pine, Plasma, Synthwave, Matrix, and more.
+**v5 Features:**
+- **Better Ranking** — Kagi-inspired quality-first algorithm with content quality scoring, direct answer detection, and improved relevance
+- **Get to the Point** — Snippets are processed to give you direct answers without the fluff
+- **Privacy Retention** — "Leaving us?" modal with reasons to stay when clicking external links
+- **100+ themes** — Dark, light, OLED, futuristic, mood. Tokyo Night, Catppuccin, Cyberpunk, Matrix, and more
+
+**Core Features:**
+- **No trackers.** No cookies on anonymous browsing, no referrer, no analytics, no logs of queries.
+- **Our own index.** A blazing-fast background crawler (30 concurrent) builds a SQLite index; strong matches are promoted and labeled "Atomic". Index grows with every search.
+- **Seven-engine meta layer.** Queries fan out anonymously to Startpage, Brave, Bing, DuckDuckGo, Wikipedia, Hacker News, and Reddit. Results merged under the single "atomic" brand.
+- **Smart ranking.** RRF + agreement boost + quality signals + popular-site prior + direct answer detection.
+- **Anonymous view.** Outbound clicks pass through Atomic so destinations never see your IP.
+- **Safety checks.** VirusTotal integration with visual indicators on each result.
+- **Enhanced security.** Strict CSP, HSTS preload, COOP, CORP headers. Privacy-first design.
+- **Blazing fast indexing.** 30 concurrent crawls, faster timeouts, optimized memory usage.
 
 ## Run it locally
 
