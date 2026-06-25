@@ -1,0 +1,10 @@
+
+> atomic-search@4.0.0 start
+> node server.js
+
+[index-sync] restoring via public URL https://raw.githubusercontent.com/kay816577-hue/Atomic-Search-/atomic-search-index/atomic.db
+[index-sync] live DB (67407872B) larger than public snapshot (59424768B) — keeping local
+[index-sync] GH_INDEX_PAT not set — read-only restore only. Set the PAT to enable persistent index growth across restarts.
+Atomic Search v5 started successfully
+Atomic Search v5 listening on port 3000
+[search] slow query: own-index=13ms meta=737ms results=30 page=1

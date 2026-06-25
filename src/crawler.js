@@ -24,12 +24,27 @@ let running = false;
 function extract(html, url) {
   const { document } = parseHTML(html);
   const title = stripTags(document.querySelector("title")?.textContent || url);
-  const text = stripTags(
-    [...document.querySelectorAll("p, h1, h2, h3, li")]
-      .slice(0, 80)
-      .map((n) => n.textContent)
+  
+  // v5: Better text extraction - get meaningful content, not CSS/JS
+  const selectors = "article, main, .content, .post, .entry, p, h1, h2, h3, h4, li, td, th";
+  const textNodes = [...document.querySelectorAll(selectors)]
+    .slice(0, 100)
+    .map(n => {
+      const text = n.textContent || "";
+      // Skip if it looks like code or CSS
+      if (/^[.{#\w\s,:\-()]+[{=]/.test(text)) return "";
+      return text;
+    })
+    .filter(t => t.length > 20 && t.length < 500)
+    .join(" ");
+  
+  // Fallback if no content found
+  const text = textNodes || stripTags(
+    [...document.querySelectorAll("body")]
+      .map(n => n.textContent)
       .join(" ")
   ).slice(0, 4000);
+  
   return { title, text, document };
 }
 

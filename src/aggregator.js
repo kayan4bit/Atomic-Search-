@@ -125,6 +125,16 @@ const POPULAR_HOSTS = {
 // Small LRU for Wikipedia REST-summary responses so hot queries don't
 // re-fetch the same articles. Keyed by canonical slug. Capped at 500
 // entries (≈ few MB); older keys evicted on overflow.
+
+// v5: Helper to check if text has readable content (not code/CSS)
+function hasReadableContent(text) {
+  const words = text.match(/\w+/g) || [];
+  if (words.length < 5) return false;
+  const vowels = (text.match(/[aeiou]/gi) || []).length;
+  if (vowels < words.length * 0.3) return false;
+  return true;
+}
+
 const WIKI_PREVIEW_CACHE = new Map();
 const WIKI_PREVIEW_CAP = 500;
 function wikiCacheGet(key) {
@@ -163,14 +173,26 @@ async function enrichPreviews(results) {
       .replace(/[\.\.\.]+$/, "")  // Remove trailing ellipses
       .trim();
     
-    // If snippet is too long, try to find the most relevant part
-    if (text.length > 300) {
+    // v5: Clean CSS/JS code from snippets (some indexed pages have raw CSS)
+    // Remove CSS rules: selectors { properties }
+    text = text.replace(/[.#]?\w[\w-]*\s*\{[^}]*\}/g, " ");
+    // Remove CSS-like content: property: value;
+    text = text.replace(/\w[\w-]*\s*:\s*[^;{}]+[;}]/g, " ");
+    // Remove JavaScript-like content
+    text = text.replace(/function\s*\([^)]*\)\s*\{[^}]*\}/g, " ");
+    text = text.replace(/=>\s*\{[^}]*\}/g, " ");
+    text = text.replace(/\.\w+\s*\([^)]*\)\s*;/g, " ");
+    // Clean up extra whitespace
+    text = text.replace(/\s+/g, " ").trim();
+    
+    // If snippet is too long or still looks like code, try to find the most relevant part
+    if (text.length > 300 || !hasReadableContent(text)) {
       // Try to find sentence boundaries
       const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
       if (sentences.length > 1) {
         // Pick the first substantive sentence (not just an intro)
         for (const sent of sentences) {
-          if (sent.length > 80) {
+          if (sent.length > 80 && hasReadableContent(sent)) {
             text = sent.trim();
             break;
           }
