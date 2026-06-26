@@ -24,12 +24,27 @@ let running = false;
 function extract(html, url) {
   const { document } = parseHTML(html);
   const title = stripTags(document.querySelector("title")?.textContent || url);
-  const text = stripTags(
-    [...document.querySelectorAll("p, h1, h2, h3, li")]
-      .slice(0, 80)
-      .map((n) => n.textContent)
+  
+  // v5: Better text extraction - get meaningful content, not CSS/JS
+  const selectors = "article, main, .content, .post, .entry, p, h1, h2, h3, h4, li, td, th";
+  const textNodes = [...document.querySelectorAll(selectors)]
+    .slice(0, 100)
+    .map(n => {
+      const text = n.textContent || "";
+      // Skip if it looks like code or CSS
+      if (/^[.{#\w\s,:\-()]+[{=]/.test(text)) return "";
+      return text;
+    })
+    .filter(t => t.length > 20 && t.length < 500)
+    .join(" ");
+  
+  // Fallback if no content found
+  const text = textNodes || stripTags(
+    [...document.querySelectorAll("body")]
+      .map(n => n.textContent)
       .join(" ")
   ).slice(0, 4000);
+  
   return { title, text, document };
 }
 
@@ -113,17 +128,16 @@ async function seedIfEmpty() {
 // a process-local LRU of "already enqueued" URLs so we avoid the DB
 // round-trip for the most common dupes.
 
-// v5: Blazing fast indexing - tuned for maximum throughput
-// Free-tier tuning. 30 concurrent fetches keeps heap well under 400 MB on
-// a 512 MB Railway/Render instance with v5 optimizations.
+// v5: Optimized for Railway compatibility with memory constraints
+// Concurrency tuned for Railway's 512MB free tier
 // Override with CRAWL_CONCURRENCY env var if you have more RAM.
-const CONCURRENCY = Number(process.env.CRAWL_CONCURRENCY) || 30;
-const PER_HOST = Number(process.env.CRAWL_PER_HOST) || 10;
-const PER_HOST_MIN_GAP_MS = Number(process.env.CRAWL_HOST_GAP_MS) || 50; // Faster gap for v5
-const LINKS_PER_PAGE = Number(process.env.CRAWL_LINKS_PER_PAGE) || 150; // More links per page
-const DEDUP_LRU_CAP = 500000; // Larger dedup cache
-const FETCH_TIMEOUT_MS = Number(process.env.CRAWL_TIMEOUT_MS) || 3000; // Faster timeout
-const MAX_HTML_BYTES = 600_000; // Slightly smaller to reduce memory
+const CONCURRENCY = Number(process.env.CRAWL_CONCURRENCY) || 15;
+const PER_HOST = Number(process.env.CRAWL_PER_HOST) || 5;
+const PER_HOST_MIN_GAP_MS = Number(process.env.CRAWL_HOST_GAP_MS) || 100;
+const LINKS_PER_PAGE = Number(process.env.CRAWL_LINKS_PER_PAGE) || 80;
+const DEDUP_LRU_CAP = 200000;
+const FETCH_TIMEOUT_MS = Number(process.env.CRAWL_TIMEOUT_MS) || 5000;
+const MAX_HTML_BYTES = 500_000;
 
 // Crawler User-Agent — identifies us to servers and links to our project.
 const CRAWLER_UA =

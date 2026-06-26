@@ -68,7 +68,7 @@ function securityHeaders() {
   // No external scripts, no frames, no connect-src beyond self.
   const csp =
     "default-src 'self'; " +
-    "script-src 'self' 'nonce-{NONCE}'; " + // Nonce for any inline scripts
+    "script-src 'self' 'unsafe-inline'; " + // Allow inline for themes
     "style-src 'self' 'unsafe-inline'; " +
     "img-src 'self' data: blob: https://www.google.com https://*.gstatic.com https://*.googleusercontent.com https://*.duckduckgo.com https://*.bing.com; " +
     "connect-src 'self'; " +
@@ -83,19 +83,18 @@ function securityHeaders() {
     "X-Frame-Options": "DENY",
     "X-Content-Type-Options": "nosniff",
     "X-XSS-Protection": "1; mode=block",
+    // Removed require-corp as it breaks cross-origin resources on some hosts
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
-    "Cross-Origin-Embedder-Policy": "require-corp",
-    // HSTS is only meaningful over TLS; safe to set anyway and let browsers
-    // ignore it on HTTP. Two years, no preload (operators can opt in).
-    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+    // HSTS - only over HTTPS, safe to set for Railway with HTTPS
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
     // Prevent search engines from indexing the search page itself
     "X-Robots-Tag": "noindex, noarchive, nofollow",
     // Privacy: Don't send referrer to external sites
     "Referrer-Policy": "strict-origin-when-cross-origin",
     // Permissions policy - disable unnecessary browser features
     "Permissions-Policy": "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), " +
-      "bluetooth=(), camera=(), cross-origin-isolated=(), display-capture=(), " +
+      "bluetooth=(), camera=(), display-capture=(), " +
       "document-domain=(), encrypted-media=(), execution-while-not-rendered=(), " +
       "execution-while-out-of-viewport=(), fullscreen=(self), geolocation=(), " +
       "gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), " +
