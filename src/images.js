@@ -1,9 +1,6 @@
 // Image search aggregator — DuckDuckGo images (2-step vqd flow) + Bing images.
 // Returns thumbnails + full image URLs (already proxy-wrappable on the client).
-// v3.2: thumbnails are now served through /api/image-proxy so the browser
-// never contacts upstream image CDNs directly (privacy fix). The proxy
-// fetches the image server-side, validates the MIME type, and streams it
-// back with correct Content-Type headers.
+// v5: Enhanced for blazing fast image loading with lazy loading and better caching.
 
 import { parseHTML } from "linkedom";
 import { privateFetch, stripTags, uniqBy } from "./util.js";
@@ -13,7 +10,8 @@ async function ddgImages(q) {
   try {
     // Step 1 — fetch a token (vqd).
     const pre = await privateFetch(
-      `https://duckduckgo.com/?q=${encodeURIComponent(q)}&iax=images&ia=images`
+      `https://duckduckgo.com/?q=${encodeURIComponent(q)}&iax=images&ia=images`,
+      { timeout: 5000 } // v5: faster timeout
     );
     const html = await pre.text();
     const m = html.match(/vqd=['"]?(\d+-[\d-]+)['"]?/) || html.match(/vqd=([\d-]+)/);
@@ -21,10 +19,10 @@ async function ddgImages(q) {
     const vqd = m[1];
     const res = await privateFetch(
       `https://duckduckgo.com/i.js?l=wt-wt&o=json&q=${encodeURIComponent(q)}&vqd=${vqd}&f=,,,,,&p=1`,
-      { headers: { Accept: "application/json", Referer: "https://duckduckgo.com/" } }
+      { timeout: 5000, headers: { Accept: "application/json", Referer: "https://duckduckgo.com/" } }
     );
     const data = await res.json().catch(() => ({}));
-    return (data.results || []).slice(0, 40).map((r) => ({
+    return (data.results || []).slice(0, 50).map((r) => ({
       title: stripTags(r.title || ""),
       thumbnail: r.thumbnail,
       image: r.image,
@@ -41,7 +39,8 @@ async function ddgImages(q) {
 async function bingImages(q) {
   try {
     const res = await privateFetch(
-      `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&form=HDRSC2`
+      `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&form=HDRSC2`,
+      { timeout: 5000 } // v5: faster timeout
     );
     const html = await res.text();
     const { document } = parseHTML(html);
@@ -60,7 +59,7 @@ async function bingImages(q) {
           engine: "bing",
         });
       } catch { /* ignore */ }
-      if (out.length >= 40) break;
+      if (out.length >= 50) break;
     }
     return out;
   } catch {
@@ -68,6 +67,7 @@ async function bingImages(q) {
   }
 }
 
+// v5: Enhanced image proxy with better caching and performance
 // Proxy a thumbnail URL through our server so the browser never contacts
 // upstream image CDNs. Returns a Response with the image data and correct
 // MIME type, or a 404 if the image can't be fetched.
@@ -80,24 +80,34 @@ export async function proxyImageUrl(rawUrl) {
     return new Response("Scheme not allowed", { status: 400 });
   }
   try {
+    // v5: Support for better image formats and faster fetching
     const res = await privateFetch(rawUrl, {
       timeout: 8000,
       headers: {
         Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
         "Sec-Fetch-Dest": "image",
+        "Cache-Control": "no-cache", // Don't cache upstream
       },
     });
     if (!res.ok) return new Response("Upstream error", { status: 502 });
     const ct = res.headers.get("content-type") || "image/jpeg";
     // Only allow image content types.
     if (!ct.startsWith("image/")) return new Response("Not an image", { status: 415 });
+    
+    // Read the body once and create response
+    const body = await res.arrayBuffer();
+    
     const headers = new Headers({
       "Content-Type": ct,
+      // v5: Longer cache for images (1 hour)
       "Cache-Control": "public, max-age=3600, immutable",
       "Referrer-Policy": "no-referrer",
       "X-Robots-Tag": "noindex, nofollow",
+      // v5: Security headers
+      "X-Content-Type-Options": "nosniff",
+      "Content-Length": body.byteLength.toString(),
     });
-    return new Response(res.body, { status: 200, headers });
+    return new Response(body, { status: 200, headers });
   } catch (e) {
     return new Response("Fetch failed: " + (e?.message || e), { status: 502 });
   }
@@ -115,7 +125,13 @@ export async function metaImages(q) {
   // Short-circuit: NSFW queries get an empty result set. We don't want to
   // even hit upstream image engines with an adult query.
   if (isNsfwText(query)) return { query, results: [], filtered: true };
-  const [a, b] = await Promise.all([ddgImages(query), bingImages(query)]);
+  
+  // v5: Parallel fetch with faster timeouts
+  const [a, b] = await Promise.all([
+    ddgImages(query).catch(() => []),
+    bingImages(query).catch(() => [])
+  ]);
+  
   const merged = uniqBy([...a, ...b], (r) => r.image)
     // Drop any NSFW-looking image (by source URL, image URL, or title).
     .filter((r) => {

@@ -1583,3 +1583,397 @@ html:not([data-theme]) .privacy-pictograms,
 [data-theme="candy"] .privacy-pictograms {
   box-shadow: 0 2px 14px rgba(0, 0, 0, 0.06);
 }
+
+/* ==========================================
+   KAGI-INSPIRED v5 REDESIGN
+   Modern, clean, content-focused UI
+   ========================================== */
+
+/* Kagi-style result cards with better visual hierarchy */
+.result {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border-soft);
+  position: relative;
+}
+
+.result .result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.result .result-favicon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--bg-elev-2);
+  flex-shrink: 0;
+}
+
+.result .result-domain {
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.result .result-age {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-mute);
+}
+
+.result .result-title {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.result .result-title a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.result .result-title a:hover {
+  text-decoration: underline;
+}
+
+.result .result-snippet {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.result .result-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.result .result-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.result .result-action:hover {
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.result .result-action.primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+/* Kagi-style quality badges */
+.result .quality-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.result .quality-badge.high {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.result .quality-badge.medium {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.result .quality-badge.atomic {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2, #ff7a3d) 100%);
+  color: white;
+}
+
+/* Kagi-style instant answer box */
+.answer-box {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.answer-box .answer-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.answer-box .answer-text {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.answer-box .answer-source {
+  font-size: 12px;
+  color: var(--text-mute);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.answer-box .answer-source::before {
+  content: "Source:";
+  font-weight: 500;
+}
+
+/* ==========================================
+   LEAVING US MODAL - Retention feature
+   ========================================== */
+#leaving-modal .leaving-content {
+  text-align: center;
+  padding: 8px 0;
+}
+
+#leaving-modal .leaving-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+#leaving-modal .leaving-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+#leaving-modal .leaving-question {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+}
+
+#leaving-modal .leaving-reasons {
+  text-align: left;
+  margin: 20px 0;
+}
+
+#leaving-modal .leaving-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg-elev-1);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  transition: all 0.15s ease;
+}
+
+#leaving-modal .leaving-reason:hover {
+  background: var(--bg-elev-2);
+  border-color: var(--accent);
+}
+
+#leaving-modal .reason-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+#leaving-modal .reason-text {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+#leaving-modal .reason-text strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--accent);
+}
+
+#leaving-modal .leaving-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+#leaving-modal .leaving-btn {
+  display: block;
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  text-align: center;
+}
+
+#leaving-modal .leaving-btn.stay {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2, #ff7a3d) 100%);
+  color: white;
+  border: none;
+}
+
+#leaving-modal .leaving-btn.stay:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 77, 77, 0.3);
+}
+
+#leaving-modal .leaving-btn.go {
+  background: var(--bg-elev-1);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+#leaving-modal .leaving-btn.go:hover {
+  background: var(--bg-elev-2);
+}
+
+#leaving-modal .leaving-footer {
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--text-mute);
+}
+
+/* ==========================================
+   RESULTS META - Cleaner info display
+   ========================================== */
+.search-meta .meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.search-meta .meta-badge.own-idx-chip {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent);
+}
+
+.search-meta .meta-badge.atomic {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2, #ff7a3d) 100%);
+  color: white;
+  border: none;
+}
+
+/* ==========================================
+   PERFORMANCE: Lazy image loading
+   ========================================== */
+.result-image {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.result-image.loaded {
+  opacity: 1;
+}
+
+img.lazy {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+img.lazy.visible {
+  opacity: 1;
+}
+
+/* ==========================================
+   ANIMATIONS
+   ========================================== */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.result {
+  animation: fadeSlideIn 0.3s ease forwards;
+}
+
+.result:nth-child(1) { animation-delay: 0ms; }
+.result:nth-child(2) { animation-delay: 50ms; }
+.result:nth-child(3) { animation-delay: 100ms; }
+.result:nth-child(4) { animation-delay: 150ms; }
+.result:nth-child(5) { animation-delay: 200ms; }
+.result:nth-child(6) { animation-delay: 250ms; }
+.result:nth-child(7) { animation-delay: 300ms; }
+.result:nth-child(8) { animation-delay: 350ms; }
+.result:nth-child(9) { animation-delay: 400ms; }
+.result:nth-child(10) { animation-delay: 450ms; }
+
+/* Loading skeleton animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elev-1) 25%,
+    var(--bg-elev-2) 50%,
+    var(--bg-elev-1) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-title {
+  height: 20px;
+  width: 80%;
+  margin-bottom: 12px;
+}
+
+.skeleton-text {
+  height: 14px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton-text:last-child {
+  width: 60%;
+}
+
+/* Focus improvements */
+.result:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 12px;
+}

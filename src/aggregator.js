@@ -19,6 +19,8 @@ import {
   parkedDemote,
   combineScore,
   stripTitleBrand,
+  qualityScore,
+  directAnswerScore,
 } from "./ranking.js";
 
 // Internal engine ids are used only for RRF / debugging. They are never
@@ -123,6 +125,16 @@ const POPULAR_HOSTS = {
 // Small LRU for Wikipedia REST-summary responses so hot queries don't
 // re-fetch the same articles. Keyed by canonical slug. Capped at 500
 // entries (≈ few MB); older keys evicted on overflow.
+
+// v5: Helper to check if text has readable content (not code/CSS)
+function hasReadableContent(text) {
+  const words = text.match(/\w+/g) || [];
+  if (words.length < 5) return false;
+  const vowels = (text.match(/[aeiou]/gi) || []).length;
+  if (vowels < words.length * 0.3) return false;
+  return true;
+}
+
 const WIKI_PREVIEW_CACHE = new Map();
 const WIKI_PREVIEW_CAP = 500;
 function wikiCacheGet(key) {
@@ -147,14 +159,56 @@ function wikiCacheSet(key, val) {
 async function enrichPreviews(results) {
   if (!Array.isArray(results) || !results.length) return;
 
-  // Seed non-wiki previews immediately from the existing snippet so even if
-  // the wiki batch times out, every card already has a usable preview.
+  // v5: "Get to the point" - process snippets to extract the most relevant info
+  // Focus on giving users direct answers rather than long descriptions
   for (const r of results) {
     if (!r.snippet) continue;
+    
+    // Process snippet to get to the point
+    let text = r.snippet;
+    
+    // Remove common boilerplate phrases
+    text = text
+      .replace(/^(click here|read more|learn more|see also|related|featured)[:\s]*/i, "")
+      .replace(/[\.\.\.]+$/, "")  // Remove trailing ellipses
+      .trim();
+    
+    // v5: Clean CSS/JS code from snippets (some indexed pages have raw CSS)
+    // Remove CSS rules: selectors { properties }
+    text = text.replace(/[.#]?\w[\w-]*\s*\{[^}]*\}/g, " ");
+    // Remove CSS-like content: property: value;
+    text = text.replace(/\w[\w-]*\s*:\s*[^;{}]+[;}]/g, " ");
+    // Remove JavaScript-like content
+    text = text.replace(/function\s*\([^)]*\)\s*\{[^}]*\}/g, " ");
+    text = text.replace(/=>\s*\{[^}]*\}/g, " ");
+    text = text.replace(/\.\w+\s*\([^)]*\)\s*;/g, " ");
+    // Clean up extra whitespace
+    text = text.replace(/\s+/g, " ").trim();
+    
+    // If snippet is too long or still looks like code, try to find the most relevant part
+    if (text.length > 300 || !hasReadableContent(text)) {
+      // Try to find sentence boundaries
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+      if (sentences.length > 1) {
+        // Pick the first substantive sentence (not just an intro)
+        for (const sent of sentences) {
+          if (sent.length > 80 && hasReadableContent(sent)) {
+            text = sent.trim();
+            break;
+          }
+        }
+      }
+      // Fall back to truncating at a good point
+      if (text.length > 300) {
+        const cutoff = text.lastIndexOf(" ", 280);
+        text = (cutoff > 150 ? text.slice(0, cutoff) : text.slice(0, 280)) + "…";
+      }
+    }
+    
     r.preview = {
       source: r.ownIndex ? "Atomic index" : "Web snippet",
       title: r.title,
-      text: r.snippet.length > 360 ? r.snippet.slice(0, 360).trimEnd() + "…" : r.snippet,
+      text: text,
       thumbnail: null,
     };
   }
@@ -334,6 +388,9 @@ function rankBlend(lists, query = "") {
       rrf: rrfNormalised(rrfRaw.get(it.url) || 0, rrfMax),
       structure: structureScore(it.url, ctx),
       proximity: proximityScore(it, ctx),
+      // v5: Kagi-inspired quality signals
+      quality: qualityScore(it),
+      directAnswer: directAnswerScore(it),
     };
     // Exact-host-root boost: if a query token equals the registrable
     // domain root (e.g. query has "kernel" and url is `kernel.org`), the
@@ -348,7 +405,7 @@ function rankBlend(lists, query = "") {
       }
     } catch { /* ignore */ }
 
-    // v5: parked-host demotion subtracts up to 0.35 from the final score.
+    // v5: parked-host demotion subtracts up to 0.45 from the final score.
     const demote = parkedDemote(it.host);
     const score = Math.max(0, combineScore(subScores) - demote);
     // Tiny URL-depth tiebreaker (no weight changes): shorter paths win
@@ -905,6 +962,8 @@ export async function metaSearch(q, opts = {}) {
         rrf: round3(sub.rrf),
         structure: round3(sub.structure),
         proximity: round3(sub.proximity),
+        quality: round3(sub.quality || 0.5),
+        directAnswer: round3(sub.directAnswer || 0),
       },
       signals,
     };

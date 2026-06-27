@@ -1,28 +1,32 @@
-// Principled ranking for Atomic Search.
+// Principled ranking for Atomic Search v5 — Kagi-inspired quality-first ranking.
 //
 // Every signal is a pure function that returns a value in [0, 1], so the
 // final score is a transparent weighted sum. This file carries ALL the
 // ranking math so the call-sites (aggregator.js) stay declarative.
 //
 // Signals (each 0..1):
-//   bm25        : BM25-style title+snippet relevance vs query tokens
-//   titleMatch  : exact / prefix / coverage bonus on the (brand-stripped) title
-//   authority   : POPULAR_HOSTS tier normalised (0, 0.33, 0.66, 1.0)
-//   structure   : homepage / shallow-path / deep-path prior
-//   agreement   : cross-source agreement (how many engines returned this URL)
-//   rrf         : normalised reciprocal-rank-fusion of upstream positions
+//   bm25          : BM25-style title+snippet relevance vs query tokens
+//   titleMatch    : exact / prefix / coverage bonus on the (brand-stripped) title
+//   authority     : POPULAR_HOSTS tier normalised (0, 0.33, 0.66, 1.0)
+//   structure     : homepage / shallow-path / deep-path prior
+//   agreement     : cross-source agreement (how many engines returned this URL)
+//   rrf           : normalised reciprocal-rank-fusion of upstream positions
+//   quality       : content quality signals (length, structure, freshness)
+//   directAnswer  : bonus for pages likely to directly answer queries
 //
 // Weights sum to 1. Changing weights is a one-line edit; every signal is
 // independently unit-testable (see ranking.test.js).
 
 export const WEIGHTS = Object.freeze({
-  bm25: 0.32,
-  titleMatch: 0.25,
+  bm25: 0.28,          // Slightly reduced to make room for quality signals
+  titleMatch: 0.22,    // Reduced slightly
   agreement: 0.08,
-  authority: 0.15,
+  authority: 0.12,     // Reduced — quality matters more
   rrf: 0.05,
-  structure: 0.07,
-  proximity: 0.08, // v5: phrase-proximity bonus in snippet
+  structure: 0.05,
+  proximity: 0.08,
+  quality: 0.08,       // NEW: content quality score
+  directAnswer: 0.04,  // NEW: bonus for Q&A content
 });
 
 // v5 "parked / ad-heavy" host demotion. Appearing here reduces the final
@@ -37,13 +41,132 @@ const PARKED_HOSTS = new Set([
   "blogspot.com", // hostnames that are entirely parked land here only when
   // the full domain matches; per-subdomain exceptions are handled via the
   // allow-list in aggregator.js rather than by listing every subdomain.
+  // Additional low-quality hosts
+  "quora.com",     // Quara answers often low quality
+  "answers.yahoo.com", // Yahoo Answers shutdown but some archives remain
+  "about.com",
+  "hubpages.com",
+  "inube.com",
+  "web.archive.org", // Archives lower priority unless specifically needed
 ]);
-const PARKED_PENALTY = 0.35;
+const PARKED_PENALTY = 0.45; // Increased penalty for v5
 
 export function parkedDemote(host) {
   if (!host) return 0;
   const h = host.toLowerCase().replace(/^www\./, "");
   return PARKED_HOSTS.has(h) ? PARKED_PENALTY : 0;
+}
+
+// NEW: Quality signals for Kagi-like ranking
+// Patterns that indicate high-quality content
+const HIGH_QUALITY_INDICATORS = [
+  /\b(tutorial|guide|how-to|introduction|documentation|reference|manual)\b/i,
+  /\b(official|documentation|specification|rfc|standard)\b/i,
+  /\b(author|contributor|copyright|license)\b/i,
+  /\b(version|v\d+\.\d+)\b/i,
+];
+
+// Patterns that indicate potentially low-quality content
+const LOW_QUALITY_INDICATORS = [
+  /\b(click here|click now|free|download|win|prize)\b/i,
+  /\b(subscribe|newsletter|sign up|register)\b/i,
+  /\b(buy now|order|shop|cart)\b/i,
+  /\b(advertisement|sponsored|partner)\b/i,
+];
+
+export function qualityScore(item) {
+  const title = item.title || "";
+  const snippet = item.snippet || item.text || "";
+  const url = item.url || "";
+  const fullText = title + " " + snippet;
+  
+  let score = 0.5; // Base score
+  
+  // Length bonus — longer, more detailed content tends to be higher quality
+  const textLength = snippet.length;
+  if (textLength > 200) score += 0.1;
+  if (textLength > 500) score += 0.1;
+  if (textLength > 1000) score += 0.05;
+  
+  // Title quality indicators
+  const hasQuestion = title.includes("?");
+  const hasBrackets = /[\[\(]/.test(title);
+  const titleLength = title.length;
+  
+  // Good title: descriptive, not too short, not too cluttered
+  if (titleLength >= 20 && titleLength <= 120) score += 0.1;
+  
+  // FAQ/Q&A content is often high quality for informational queries
+  if (hasQuestion) score += 0.1;
+  
+  // Check for technical documentation patterns
+  for (const pattern of HIGH_QUALITY_INDICATORS) {
+    if (pattern.test(fullText)) score += 0.05;
+  }
+  
+  // Penalize low-quality patterns
+  for (const pattern of LOW_QUALITY_INDICATORS) {
+    if (pattern.test(fullText)) score -= 0.1;
+  }
+  
+  // URL structure hints
+  try {
+    const urlObj = new URL(url);
+    const path = urlObj.pathname;
+    // /docs/ /guide/ /tutorial/ paths often have quality content
+    if (/\/(docs?|guide|tutorial|reference|wiki|api)\//i.test(path)) {
+      score += 0.1;
+    }
+    // File extensions that suggest downloadable/low-quality content
+    if (/\.(pdf|doc|docx|xls|xlsx)\$/i.test(path)) {
+      score -= 0.05;
+    }
+  } catch {}
+  
+  return Math.max(0, Math.min(1, score));
+}
+
+export function directAnswerScore(item) {
+  const title = (item.title || "").toLowerCase();
+  const snippet = (item.snippet || item.text || "").toLowerCase();
+  const url = (item.url || "").toLowerCase();
+  
+  let score = 0;
+  
+  // Patterns that indicate direct answer content
+  const answerPatterns = [
+    /^what is /i,
+    /^how to /i,
+    /^why /i,
+    /^when /i,
+    /^where /i,
+    /^who is /i,
+    /^can /i,
+    /^should /i,
+    /\bfaq\b/i,
+    /\bdefinition\b/i,
+    /\bmeaning\b/i,
+    /\bexamples?\b/i,
+  ];
+  
+  for (const pattern of answerPatterns) {
+    if (pattern.test(title)) {
+      score = 1;
+      break;
+    }
+  }
+  
+  // Snippet starts with a clear answer format
+  if (/^(yes|no|you can|it is|they are|the answer)/i.test(snippet)) {
+    score = Math.max(score, 0.8);
+  }
+  
+  // Check URL for Q&A patterns
+  if (/\/(faq|qa|questions?|answers?)\//i.test(url)) {
+    score = Math.max(score, 0.7);
+  }
+  
+  return score;
 }
 
 // Tiny synonym table that demonstrably helps short queries. Additions

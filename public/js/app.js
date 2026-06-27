@@ -597,16 +597,33 @@
     var pathLabel = pathOf(r.url);
     var fav = faviconUrl(host);
     var badges = [];
-    if (r.ownIndex) badges.push('<span class="badge atomic" title="Matched in the Atomic index">Atomic</span>');
+    
+    // Kagi-style quality badges
+    if (r.ownIndex) {
+      badges.push('<span class="quality-badge atomic" title="Matched in the Atomic index">⚡ Atomic</span>');
+    } else if (r.subScores && r.subScores.quality >= 0.75) {
+      badges.push('<span class="quality-badge high" title="High quality source">✓ High Quality</span>');
+    } else if (r.subScores && r.subScores.quality >= 0.6) {
+      badges.push('<span class="quality-badge medium" title="Medium quality source">○ Good</span>');
+    }
+    
     if (r.agreement && r.agreement >= 2) {
       badges.push('<span class="badge agree" title="Confirmed by ' + r.agreement + ' sources">' + r.agreement + ' sources</span>');
     }
+    
     var titleHtml = highlight(r.title || r.url, terms);
     var previewHtml = renderPreview(r, terms);
     // Only show the raw snippet paragraph if we have no richer preview.
     var snippetHtml = (!r.preview && r.snippet) ? highlight(r.snippet, terms) : "";
     var cls = "result" + (r.ownIndex ? " atomic-hit" : "");
     var whyPanel = renderWhyPanel(r);
+    
+    // Direct answer badge for Q&A content
+    var answerBadge = '';
+    if (r.subScores && r.subScores.directAnswer > 0.5) {
+      answerBadge = '<span class="answer-badge">💡 Direct Answer</span>';
+    }
+    
     return (
       '<article class="' + cls + '" data-url="' + esc(r.url) + '">' +
       '  <div class="host-line">' +
@@ -625,7 +642,8 @@
       '    <button type="button" class="safe-view" title="Open via anonymising proxy in an isolated sandbox" data-safe-view="' + esc(r.url) + '">Safe view</button>' +
       '    <span class="safety-dot" data-verdict="pending" title="Scanning for safety…"></span>' +
       "  </div>" +
-      '  <a class="title" href="' + esc(linkFor(r.url)) + '" rel="noreferrer noopener" target="_top">' + titleHtml + "</a>" +
+      '  <a class="title" href="' + esc(linkFor(r.url)) + '" rel="noreferrer noopener" target="_top" data-leave>' + titleHtml + "</a>" +
+      answerBadge +
       previewHtml +
       (snippetHtml ? '<p class="snippet">' + snippetHtml + "</p>" : "") +
       whyPanel +
